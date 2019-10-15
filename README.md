@@ -30,7 +30,7 @@ Multiplexing and Illumina sequencing...
 
 ## Data filtering
 
-The root name of the files called in this script is ```iguaque```, however it should be replaced by the file name of the corresponding bacteria, eukarya, fungi, plants, and insects dataset. 
+The root names of the files called in this script are ```iguaque``` and ```insects```, however they should be replaced by the file name of the corresponding bacteria, eukarya, fungi, plants, and insects datasets. 
 
 ### Required softwares and packages
 
@@ -41,9 +41,43 @@ The root name of the files called in this script is ```iguaque```, however it sh
 + R packages: vegan, lattice, ROBITools, ROBITaxonomy, plotrix, ENmisc, igraph, pander, stringr.
 
 
-### Sequence quality control and demultiplexing
+### Taxonomic database generation
 
-AIM/RATIONALE OF THIS STEP...
+Download EMBL reference database (i.e. embl_r134).
+
+```
+mkdir DB
+./go_embl.bash
+```
+
+Create a reference database per barcode that preserve only the taxonomic information of the corresponding group and convert it to fasta format. Primers varies accoding the barcode as follow:
+
++ Bacteria: forward_primer=GGATTAGATACCCTGGTAGT; reverse_primer=CACGACACGAGCTGACG.
++ Eukarya: forward_primer=TCACAGACCTGTTATTGC; reverse_primer=TTTGTCTGCTTAATTSCG.
++ Fungi: forward_primer=CAAGAGATCCGTTGTTGAAAGTK; reverse_primer=GGAAGTAAAAGTCGTAACAAGG.
++ Plants: forward_primer=GGGCAATCCTGAGCCAA; reverse_primer=CCATTGAGTCTCTGCACCTATC.
++ Insects: forward_primer=TRRGACGAGAAGACCCTATA; reverse_primer=TCTTAATCCAACATCGAGGTC.
+
+```
+ecoPCR -d DB/embl_r134 -e 3 -l 5 -L 200 TRRGACGAGAAGACCCTATA TCTTAATCCAACATCGAGGTC > insects_db
+obiconvert --fasta-output insects_db > insects_ref.fasta
+```
+
+Keep only those sequences that contain information at the species level.
+
+```
+obigrep -d DB/embl_r134 --require-rank=species --require-rank=genus --require-rank=family insects_ref.fasta > insects_ref_clean.fasta
+```
+
+Group and dereplicate sequences, keeping only sequence records that are unique.
+
+```
+obiuniq -d DB/embl_r134 insects_ref_clean.fasta > insects_ref_clean_uniq.fasta
+awk '/^>/{gsub(";$", "", $1);print;}1' insects_ref_clean_uniq.fasta | obiannotate --uniq-id > insects_database_r134.fasta
+```
+
+
+### Sequence quality control and demultiplexing
 
 Align reads from paired-end sequencing. ```--index-file``` points to the file containing the illumina index reads.
 
@@ -75,43 +109,51 @@ Filter out sequences that were not aligned, have ambiguous bases, or are too sho
 obigrep -s '^[acgt]$' -l 75 -a mode:alignment --fasta-output iguaque_align_filterE2_uniq > iguaque_align_filterE2_uniq_nl.fasta
 ```
 
-Rename sequences.
+Rename sequences (no mandatory).
 
 ```
 obiannotate --set-identifier='"seq_%03d" % counter' iguaque_align_filterE2_uniq_nl.fasta > iguaque_align_filterE2_uniq_nl_setid.fasta
 end
 ```
 
-Filter out singletons and keep only interesting attributes.
+Filter out singletons and keep only interesting attributes. ```'count>10'``` or higher is advisable if taxonomic assignment takes an exaggerate amoung of time given the available computational capabilities.
 
 ```
 obigrep -p 'count>1' iguaque_align_filterE2_uniq_nl_setid.fasta | obiannotate -k merged_sample -k count > iguaque_align_filterE2_uniq_nl_setid_c1.fasta
 ```
 
-### Taxonomic database generation
-
-AIM/RATIONALE OF THIS STEP...
-
-
-
-
 ### Taxonomic assignment 
 
-AIM/RATIONALE OF THIS STEP...
+Make taxonomic assignment.
+
+```
+ecotag -d embl_r134 -R iguaque_database_r134.fasta iguaque_align_filterE2_uniq_nl_setid_c1.fasta > iguaque_align_filterE2_uniq_nl_setid_c1_assign.fasta
+```
+
+Keep only the sequences assigned to the taxa of interest. ```-r``` specifies the taxid, which varies according to the barcode as follow:
+
++ Bacteria: 2.
++ Eukarya: 2759.
++ Fungi: 4751.
++ Plants (Spermatophyta): 58024.
++ Insects: 50557.
+
+```
+obigrep -d embl_r134 -r 50557 iguaque_align_filterE2_uniq_nl_setid_c1_assign.fasta > GWM-iguaque_align_filterE2_uniq_nl_setid_c1_assign_insects.fasta
+```
+
+Cluster sequences by: 
++ 3 bp...
++ 97%...
++ 99%...
 
 
-
-
-### Community matrix generation
-
-AIM/RATIONALE OF THIS STEP...
 
 
 
 
 ### Community matrix curation
 
-AIM/RATIONALE OF THIS STEP...
 
 
 
@@ -124,14 +166,12 @@ AIM/RATIONALE OF THIS STEP...
 
 ### Alpha-diversity
 
-AIM/RATIONALE OF THIS STEP...
 
 
 
 
 ### Beta-diversity
 
-AIM/RATIONALE OF THIS STEP...
 
 
 
@@ -139,7 +179,6 @@ AIM/RATIONALE OF THIS STEP...
 
 ### Environmental associations
 
-AIM/RATIONALE OF THIS STEP...
 
 
 
