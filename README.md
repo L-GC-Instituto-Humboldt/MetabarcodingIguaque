@@ -142,31 +142,35 @@ Keep only the sequences assigned to the taxa of interest. ```-r``` specifies the
 obigrep -d embl_r134 -r 50557 iguaque_align_filterE2_uniq_nl_setid_c1_assign.fasta > GWM-iguaque_align_filterE2_uniq_nl_setid_c1_assign_insects.fasta
 ```
 
+### Sequence clustering
+
 Cluster sequences by distance or similarity. ```-d``` indicates that the score threshold specified by ```-t``` is expressed as distance (bp), otherwise it is assumed it is expressed as similarity (%).
 
 + 3 bp distance:  
 
 ```
-sumatra -r -d -t 3 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.dist
+sumaclust -d -r -t 3 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta
 ```
 
 + 97% of similarity: 
 
 ```
-sumatra -t 0.97 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t97.dist
+sumaclust -t 0.97 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t97.fasta
 ```
 
 + 99% of similarity: 
 
 ```
-sumatra -t 0.99 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t99.dist
+sumaclust -t 0.99 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t99.fasta
 ```
 
 Subsequent analyses were independently done on the three datasets above generated. For the sake of simplicity, only ```-t 3``` is called in the following lines.
 
+Sort the sequences according to their count and extract all the information in a tabular file
 
-
-
+```
+obisort -r -k count GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta | obitab -o > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab
+```
 
 
 ### Community matrix curation
