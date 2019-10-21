@@ -97,7 +97,7 @@ Dereplicate unique sequences, grouping together sequence records. ```-m sample``
 obiuniq -m sample iguaque_align_filterE2.fasta > iguaque_align_filterE2_uniq.fasta
 ```
 
-Filter out sequences that were not aligned, have ambiguous bases, or are too short. ```-l```specifies the minimum sequence length, which varies according to the barcode as follow:
+Filter out sequences that were not aligned, have ambiguous bases, or are too short. The number between curly brackets ```{}```specifies the minimum sequence length, which varies according to the barcode as follow:
 
 + Bacteria 16S: 200 bp.
 + Eukarya 18S: 80 bp.
@@ -106,7 +106,7 @@ Filter out sequences that were not aligned, have ambiguous bases, or are too sho
 + Insects 16S: 75 bp.
 
 ```
-obigrep -s '^[acgt]$' -l 75 -a mode:alignment --fasta-output iguaque_align_filterE2_uniq > iguaque_align_filterE2_uniq_nl.fasta
+obigrep -s '^[acgt]{75,}$' -a mode:alignment --fasta-output iguaque_align_filterE2_uniq > iguaque_align_filterE2_uniq_nl.fasta
 ```
 
 Rename sequences (no mandatory).
