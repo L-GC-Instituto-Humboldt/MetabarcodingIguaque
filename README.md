@@ -148,19 +148,19 @@ Cluster sequences by distance or similarity. ```-d``` indicates that the score t
 + 3 bp distance:  
 
 ```
-sumaclust -d -r -t 3 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta
+sumaclust -d -r -t 3 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta
 ```
 
 + 97% of similarity: 
 
 ```
-sumaclust -t 0.97 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t97.fasta
+sumaclust -t 0.97 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t97.fasta
 ```
 
 + 99% of similarity: 
 
 ```
-sumaclust -t 0.99 GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t99.fasta
+sumaclust -t 0.99 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t99.fasta
 ```
 
 Subsequent analyses were independently done on the three datasets above generated. For the sake of simplicity, only ```-t 3``` is called in the following lines.
@@ -168,7 +168,7 @@ Subsequent analyses were independently done on the three datasets above generate
 Sort the sequences according to their count and extract all the information in a tabular file
 
 ```
-obisort -r -k count GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta | obitab -o > GWM-844_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab
+obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta | obitab -o > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab
 ```
 
 
