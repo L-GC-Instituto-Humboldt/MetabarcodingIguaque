@@ -36,8 +36,7 @@ The root names of the files called in this script are ```iguaque``` and ```insec
 
 + OBITools: 
 + ecoPCR: 
-+ Sumatra: 
-+ Infomap: 
++ Sumaclust: 
 + R packages: vegan, lattice, ROBITools, ROBITaxonomy, plotrix, ENmisc, igraph, pander, stringr.
 
 
@@ -143,7 +142,7 @@ obigrep -d embl_r134 -r 50557 iguaque_align_filterE2_uniq_nl_setid_c1_assign.fas
 
 ### Sequence clustering
 
-Cluster sequences by distance or similarity. ```-d``` indicates that the score threshold specified by ```-t``` is expressed as distance (bp), otherwise it is assumed it is expressed as similarity (%).
+Cluster sequences by distance or similarity. ```-d``` indicates that the score threshold specified by ```-t``` is expressed as distance (bp), otherwise it is assumed it is expressed as similarity (%). The cluster center is the most abundant sequence.
 
 + 3 bp distance:  
 
@@ -171,6 +170,33 @@ Sort the sequences according to their count and extract all the information in a
 obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta | obitab -o > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab
 ```
 
+Aggregate sequences from the same cluster (MOTU) in ```R```. Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative number indicates column numbers from the last one.
+
+```
+tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab", sep="\t", header=T)
+match <- tab[,c(1,3,4,8)]
+taxo <- tab[,c(1,(ncol(tab)-11):ncol(tab))]
+samples <- aggregate(x=tab[,16:(ncol(tab)-12)], by=list(tab[,5]), FUN=sum)
+colnames(samples)[1] <- colnames(tab)[1]
+tab <- merge(match, samples, by="id")
+tab <- merge(tab, taxo, by="id")
+write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3_ag.tab", quote=F, sep="\t", row.names=F)
+rm(tab, match, taxo, samples)
+```
+
+If the taxonomic assignment step was skipped but the sequences were still clustered with ```sumaclust```, the kept columns are id (col. 1), cluster count (col. 6), samples (col. 9:-2), and sequence (col. -1). 
+
+```
+tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_t3.tab", sep="\t", header=T)
+count <- tab[,c(1,6)]
+seq <- tab[,c(1,ncol(tab))]
+samples <- aggregate(x=tab[,8:(ncol(tab)-1)], by=list(tab[,3]), FUN=sum)
+colnames(samples)[1] <- colnames(tab)[1]
+tab <- merge(count, samples, by="id")
+tab <- merge(tab, seq, by="id")
+write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_t3_ag.tab", quote=F, sep="\t", row.names=F)
+rm(count, seq, samples, tab)
+```
 
 ### Community matrix curation
 
