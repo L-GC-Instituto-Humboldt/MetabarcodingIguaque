@@ -174,12 +174,18 @@ Aggregate sequences from the same cluster (MOTU) in ```R```. Keep only the infor
 
 ```
 tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab", sep="\t", header=T)
+# Extract sequence ID, taxonomic DB matching score and sequence, and cluster size
 match <- tab[,c(1,3,4,8)]
+# Extract taxonomic information and sequence
 taxo <- tab[,c(1,(ncol(tab)-11):ncol(tab))]
+# Extract abundances per sample and aggregate them by cluster ID
 samples <- aggregate(x=tab[,16:(ncol(tab)-12)], by=list(tab[,5]), FUN=sum)
 colnames(samples)[1] <- colnames(tab)[1]
+# Add taxonomic DB matching information to pooled abundances
 tab <- merge(match, samples, by="id")
+# Add taxonomic information of the "cluster center" sequence to its corresponding pooled cluster abundancies
 tab <- merge(tab, taxo, by="id")
+# Export the matrix as a tab-delimited table
 write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3_ag.tab", quote=F, sep="\t", row.names=F)
 rm(tab, match, taxo, samples)
 ```
