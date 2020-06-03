@@ -58,20 +58,20 @@ Create a reference database per barcode that preserve only the taxonomic informa
 + Insects: forward_primer=TRRGACGAGAAGACCCTATA; reverse_primer=TCTTAATCCAACATCGAGGTC.
 
 ```
-ecoPCR -d DB/embl_r134 -e 3 -l 5 -L 200 TRRGACGAGAAGACCCTATA TCTTAATCCAACATCGAGGTC > insects_db
+ecoPCR -d DB/embl_r140 -e 3 -l 5 -L 200 TRRGACGAGAAGACCCTATA TCTTAATCCAACATCGAGGTC > insects_db
 obiconvert --fasta-output insects_db > insects_ref.fasta
 ```
 
 Keep only those sequences that contain information at the species level.
 
 ```
-obigrep -d DB/embl_r134 --require-rank=species --require-rank=genus --require-rank=family insects_ref.fasta > insects_ref_clean.fasta
+obigrep -d DB/embl_r140 --require-rank=species --require-rank=genus --require-rank=family insects_ref.fasta > insects_ref_clean.fasta
 ```
 
 Group and dereplicate sequences, keeping only sequence records that are unique.
 
 ```
-obiuniq -d DB/embl_r134 insects_ref_clean.fasta > insects_ref_clean_uniq.fasta
+obiuniq -d DB/embl_r140 insects_ref_clean.fasta > insects_ref_clean_uniq.fasta
 awk '/^>/{gsub(";$", "", $1);print;}1' insects_ref_clean_uniq.fasta | obiannotate --uniq-id > insects_database_r134.fasta
 ```
 
@@ -117,7 +117,7 @@ obiannotate --set-identifier='"seq_%03d" % counter' iguaque_align_filterE2_uniq_
 Filter out singletons and keep only interesting attributes. ```'count>10'``` or higher is advisable if taxonomic assignment takes an exaggerate amoung of time given the available computational capabilities.
 
 ```
-obigrep -p 'count>1' iguaque_align_filterE2_uniq_nl_setid.fasta | obiannotate -k merged_sample -k count > iguaque_align_filterE2_uniq_nl_setid_c1.fasta
+obigrep -p 'count>10' iguaque_align_filterE2_uniq_nl_setid.fasta | obiannotate -k merged_sample -k count > iguaque_align_filterE2_uniq_nl_setid_c10.fasta
 ```
 
 ### Taxonomic assignment 
@@ -125,7 +125,7 @@ obigrep -p 'count>1' iguaque_align_filterE2_uniq_nl_setid.fasta | obiannotate -k
 Make taxonomic assignment.
 
 ```
-ecotag -d embl_r134 -R iguaque_database_r134.fasta iguaque_align_filterE2_uniq_nl_setid_c1.fasta > iguaque_align_filterE2_uniq_nl_setid_c1_assign.fasta
+ecotag -d embl_r140 -R iguaque_database_r140.fasta iguaque_align_filterE2_uniq_nl_setid_c10.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140.fasta
 ```
 
 Keep only the sequences assigned to the taxa of interest. ```-r``` specifies the taxid, which varies according to the barcode as follow:
@@ -137,7 +137,7 @@ Keep only the sequences assigned to the taxa of interest. ```-r``` specifies the
 + Insects: 50557.
 
 ```
-obigrep -d embl_r134 -r 50557 iguaque_align_filterE2_uniq_nl_setid_c1_assign.fasta > GWM-iguaque_align_filterE2_uniq_nl_setid_c1_assign_insects.fasta
+obigrep -d embl_r140 -r 50557 iguaque_align_filterE2_uniq_nl_setid_c1_assign_r140.fasta > GWM-iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects.fasta
 ```
 
 ### Sequence clustering
@@ -147,19 +147,19 @@ Cluster sequences by distance or similarity. ```-d``` indicates that the score t
 + 3 bp distance:  
 
 ```
-sumaclust -d -r -t 3 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta
+sumaclust -d -r -t 3 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.fasta
 ```
 
 + 97% of similarity: 
 
 ```
-sumaclust -t 0.97 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t97.fasta
+sumaclust -t 0.97 iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t97.fasta
 ```
 
 + 99% of similarity: 
 
 ```
-sumaclust -t 0.99 iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t99.fasta
+sumaclust -t 0.99 iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects.fasta > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t99.fasta
 ```
 
 Subsequent analyses were independently done on the three datasets above generated. For the sake of simplicity, only ```-t 3``` is called in the following lines.
@@ -167,13 +167,13 @@ Subsequent analyses were independently done on the three datasets above generate
 Sort the sequences according to their count and extract all the information in a tabular file
 
 ```
-obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.fasta | obitab -o > iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab
+obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.fasta | obitab -o > iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.tab
 ```
 
-Aggregate sequences from the same cluster (MOTU) in ```R```. Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative number indicates column numbers from the last one.
+Aggregate sequences from the same cluster (MOTU) in ```R```. Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
 
 ```
-tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3.tab", sep="\t", header=T)
+tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.tab", sep="\t", header=T, check.names=F)
 # Extract sequence ID, taxonomic DB matching score and sequence, and cluster size
 match <- tab[,c(1,3,4,8)]
 # Extract taxonomic information and sequence
@@ -185,26 +185,21 @@ colnames(samples)[1] <- colnames(tab)[1]
 tab <- merge(match, samples, by="id")
 # Add taxonomic information and sequence of the "cluster center" ID to its corresponding pooled cluster abundancies
 tab <- merge(tab, taxo, by="id")
+# Add a missing "a" at the end of the name of the first replicate of localities and negative controls
+a1 <- which(colnames(tab) %in% grep("sample:[[:digit:]].*[[:digit:]]$", colnames(tab), value=T)) # Samples missing an "a" in their names
+a2 <- which(colnames(tab) %in% grep("sample:TNEGPART.*[[:digit:]]$", colnames(tab), value=T)) # Controls missing an "a" in their names
+for (i in c(a1, a2)) {
+  colnames(tab)[i] <- paste(colnames(tab)[i], "a", sep="")
+}
 # Export the matrix as a tab-delimited table
-write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_assign_insects_t3_ag.tab", quote=F, sep="\t", row.names=F)
+write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3_ag.tab", quote=F, sep="\t", row.names=F)
 rm(tab, match, taxo, samples)
 ```
 
-If the taxonomic assignment step was skipped but the sequences were still clustered with ```sumaclust```, the kept columns are id (col. 1), cluster count (col. 6), samples (col. 9:-2), and sequence (col. -1). 
-
-```
-tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_t3.tab", sep="\t", header=T)
-count <- tab[,c(1,6)]
-seq <- tab[,c(1,ncol(tab))]
-samples <- aggregate(x=tab[,8:(ncol(tab)-1)], by=list(tab[,3]), FUN=sum)
-colnames(samples)[1] <- colnames(tab)[1]
-tab <- merge(count, samples, by="id")
-tab <- merge(tab, seq, by="id")
-write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_t3_ag.tab", quote=F, sep="\t", row.names=F)
-rm(count, seq, samples, tab)
-```
 
 ### Community matrix curation
+
+Post OBITools filtering is done in ```R```. 
 
 
 
