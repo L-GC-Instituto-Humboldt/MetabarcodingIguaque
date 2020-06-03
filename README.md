@@ -164,13 +164,32 @@ sumaclust -t 0.99 iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects.f
 
 Subsequent analyses were independently done on the three datasets above generated. For the sake of simplicity, only ```-t 3``` is called in the following lines.
 
-Sort the sequences according to their count and extract all the information in a tabular file
+Sort the sequences according to their count and export all the information in a tab-delimited file
 
 ```
 obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.fasta | obitab -o > iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.tab
 ```
 
-Aggregate sequences from the same cluster (MOTU) in ```R```. Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
+
+## Community matrix curation
+
+Post-OBITools filtering is done in ```R```. It requires loading the following packages:
+
+```
+library(vegan)
+library(lattice)
+library(ROBITools)
+library(ROBITaxonomy)
+library(plotrix)
+library(ENmisc)
+library(igraph)
+library(pander)
+library(stringr)
+```
+
+### MOTU's abundance pooling
+
+Aggregate sequences from the same cluster (MOTU). Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
 
 ```
 tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.tab", sep="\t", header=T, check.names=F)
@@ -193,13 +212,49 @@ for (i in c(a1, a2)) {
 }
 # Export the matrix as a tab-delimited table
 write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3_ag.tab", quote=F, sep="\t", row.names=F)
-rm(tab, match, taxo, samples)
+rm(tab, match, taxo, samples, a1, a2)
 ```
 
+### Envirnoment setting
 
-### Community matrix curation
+Set paths and file names.
 
-Post OBITools filtering is done in ```R```. 
+```
+PATH="/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/" #working directory
+OBJ="/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag.tab" #obitool output
+DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" # ecopcr database, used only for taxid manipulation purposes
+replication=T
+```
+
+Import data.
+
+```
+setwd(PATH) 
+DB=read.taxonomy(DB_N)
+OBI=import.metabarcoding.data(OBJ)
+```
+
+### Taxonomic formatting
+
+Standarise taxonomic information across all levels and export it as a new tab-delimited table. Note that ":" is replaced by "." in column names.
+
+```
+OBI@motus$rank_ok=taxonomicrank(DB,OBI@motus$taxid)
+OBI@motus$species_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"species"))
+OBI@motus$genus_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"genus"))
+OBI@motus$family_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"family"))
+OBI@motus$order_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"order"))
+OBI@motus$class_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"class"))
+OBI@motus$phylum_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"phylum"))
+OBI@motus$kingdom_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"kingdom"))
+OBI@motus$bid_ok=round(OBI@motus$best_identity, 3)
+OBI@motus$scientific_name_ok=OBI@motus$scientific_name
+
+tmp=t(OBI@reads)
+colnames(tmp)=paste("sample:", colnames(tmp), sep="")
+write.table(data.frame(OBI@motus,tmp), paste(stri_sub(OBJ, 1, -5), "_taxo.tab", sep=""), row.names=FALSE, col.names=T, quote=F, sep="\t")
+```
+
 
 
 
