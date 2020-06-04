@@ -220,9 +220,12 @@ rm(tab, match, taxo, samples, a1, a2)
 Set paths and file names.
 
 ```
-PATH="/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/" #working directory
-OBJ="/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag.tab" #obitool output
-DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" # ecopcr database, used only for taxid manipulation purposes
+# Working directory
+PATH="[PATH]/Iguaque/"
+# Tab-delimited community matrix
+OBJ="/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag.tab"
+# ecopcr database, used only for taxid manipulation purposes
+DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" 
 replication=T
 ```
 
@@ -249,12 +252,79 @@ OBI@motus$phylum_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"phyl
 OBI@motus$kingdom_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"kingdom"))
 OBI@motus$bid_ok=round(OBI@motus$best_identity, 3)
 OBI@motus$scientific_name_ok=OBI@motus$scientific_name
-
+# Export matrix
 tmp=t(OBI@reads)
 colnames(tmp)=paste("sample:", colnames(tmp), sep="")
 write.table(data.frame(OBI@motus,tmp), paste(stri_sub(OBJ, 1, -5), "_taxo.tab", sep=""), row.names=FALSE, col.names=T, quote=F, sep="\t")
 ```
 
+### Data quality inspection
+
+The following sections will output a serie of plots to visually inspect data quality based on presence and abundance of contaminant sequences and taxonomic assignment scores.
+
+Identify and set different colors to samples and controls.
+
+```
+EMPTY=grep("BLK", rownames(OBI@reads)) #black
+PCR_CTL=grep("NEG", rownames(OBI@reads)) #grey
+POS_CTL=grep("M", rownames(OBI@reads)) #red
+CONTROLS=c(PCR_CTL, EMPTY, POS_CTL)
+
+COL="lightgrey" 
+BOR="grey"
+COL.s="cyan3"
+BOR.s="cyan4"
+COL.neg='red'
+BOR.neg="darkred"
+COL.all=rep("cyan3",nrow(OBI)); COL.all[CONTROLS]="red"
+BOR.all=rep("cyan4",nrow(OBI)); BOR.all[CONTROLS]="darkred"
+```
+
+Index samples and controls, get theis position in the library preparation plates, and assign a color code. A ngsfilter file with coordinates of all the samples in the library preparation plates is needed per taxonomic group.
+
+```
+# Modify path accordingly
+ngsfilt=read.table('/media/henry/UNTITLED/Henry_06June2019/Iguaque/ngsfiltering/ngsfilterIguaqueEuca.txt')
+
+#For each samples: add locations into plates 
+OBI@samples$xPlate<-rep("NA", length(OBI@samples$sample))
+OBI@samples$yPlate<-rep("NA", length(OBI@samples$sample))
+
+A<-1; B<-2; C<-3; D<-4; E<-5; F<-6; G<-7; H<-8
+for (i in 1:length(OBI@samples$sample)) {
+  PLATE <- as.numeric(substr(ngsfilt[which(ngsfilt[,2] == as.character(OBI@samples$sample[i])), 6], 14, 15))
+  x_col <- as.numeric(substr(ngsfilt[which(ngsfilt[,2] == as.character(OBI@samples$sample[i])), 6], 17, 18))
+  y_row <- get(substr(ngsfilt[which(ngsfilt[,2] == as.character(OBI@samples$sample[i])), 6], 19, 19)) + ((PLATE-1)*8)
+  OBI@samples$xPlate[i] <- x_col
+  OBI@samples$yPlate[i] <- y_row
+}
+rm(A,B,C,D,E,F,G,H)
+```
+
+Plot reads count per sample and across controls to set up a cut-off and indicate the position of the samples below such cut-off at the library plate.
+
+```
+ngsfilt<-ngsfilt[which(ngsfilt$V2 %in% rownames(OBI@reads)),]
+
+par(mar=c(5,5,4,4)); layout(matrix(c(1,1,2,1,1,2,1,1,3,5,5,3,5,5,4,5,5,4), 6, 3, byrow = TRUE))
+barplot(rowSums(OBI@reads), col=COL.all, border=BOR.all, xlab="Samples", ylab="Number of reads", main="Reads count")
+
+hist(log10(rowSums(OBI@reads[-CONTROLS,])), breaks=40,  col=rgb(0,0,1,0.5), main="PCR CTL", xlab="log10 number of reads", ylab="Nb samples", xlim=c(0,6), lty="blank")
+hist(log10(rowSums(OBI@reads[PCR_CTL,])), breaks=40,  col=rgb(1,0,0,0.5), add=T, lty="blank")
+hist(log10(rowSums(OBI@reads[-CONTROLS,])), breaks=40,  col=rgb(0,0,1,0.5), main="EMPTY", xlab="log10 number of reads", ylab="Nb samples", xlim=c(0,6), lty="blank")
+hist(log10(rowSums(OBI@reads[EMPTY,])), breaks=40,  col=rgb(1,0,0,0.5), add=T, lty="blank")
+hist(log10(rowSums(OBI@reads[-CONTROLS,])), breaks=40,  col=rgb(0,0,1,0.5), main="POS CTL", xlab="log10 number of reads", ylab="Nb samples", xlim=c(0,6), lty="blank")
+hist(log10(rowSums(OBI@reads[POS_CTL,])), breaks=40,  col=rgb(1,0,0,0.5), add=T, lty="blank")
+
+# Set cut-off value after visual inspection of the previous histograms
+thresh.seqdepth=2.4 
+abline(v=thresh.seqdepth, col="black", lty=2, lwd=2); mtext(side=4, paste("Cut-off < ", thresh.seqdepth, sep=""), cex=0.8, font=3)
+plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, xlab="", ylab="", main="Sample position at library plates")
+points(as.numeric(OBI@samples$yPlate[which(log10(rowSums(OBI@reads))<thresh.seqdepth)]),
+       as.numeric(OBI@samples$xPlate[which(log10(rowSums(OBI@reads))<thresh.seqdepth)])+0.2, 
+       pch=8, cex=0.5, lwd=1.5, col='yellow4')
+abline(v=seq(8.5,24.5,8), lty=2, col="grey")
+```
 
 
 
