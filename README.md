@@ -301,7 +301,7 @@ for (i in 1:length(OBI@samples$sample)) {
 rm(A,B,C,D,E,F,G,H)
 ```
 
-Plot reads count per sample and across controls to set up a cut-off and indicate the position of the samples below such cut-off at the library plate.
+Plot reads count per sample and across controls to set up a cut-off and indicate with an asterisk the position of the samples below such cut-off at the library plate.
 
 ```
 ngsfilt<-ngsfilt[which(ngsfilt$V2 %in% rownames(OBI@reads)),]
@@ -326,6 +326,7 @@ points(as.numeric(OBI@samples$yPlate[which(log10(rowSums(OBI@reads))<thresh.seqd
 abline(v=seq(8.5,24.5,8), lty=2, col="grey")
 ```
 
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_readscount.jpeg?raw=true)
 
 
 
