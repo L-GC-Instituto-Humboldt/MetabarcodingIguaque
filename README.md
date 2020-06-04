@@ -316,9 +316,10 @@ hist(log10(rowSums(OBI@reads[EMPTY,])), breaks=40,  col=rgb(1,0,0,0.5), add=T, l
 hist(log10(rowSums(OBI@reads[-CONTROLS,])), breaks=40,  col=rgb(0,0,1,0.5), main="POS CTL", xlab="log10 number of reads", ylab="Nb samples", xlim=c(0,6), lty="blank")
 hist(log10(rowSums(OBI@reads[POS_CTL,])), breaks=40,  col=rgb(1,0,0,0.5), add=T, lty="blank")
 
-# Set cut-off value after visual inspection of the previous histograms
+# Set up cut-off value after visual inspection of the previous histograms
 thresh.seqdepth=2.4 
 abline(v=thresh.seqdepth, col="black", lty=2, lwd=2); mtext(side=4, paste("Cut-off < ", thresh.seqdepth, sep=""), cex=0.8, font=3)
+
 plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, xlab="", ylab="", main="Sample position at library plates")
 points(as.numeric(OBI@samples$yPlate[which(log10(rowSums(OBI@reads))<thresh.seqdepth)]),
        as.numeric(OBI@samples$xPlate[which(log10(rowSums(OBI@reads))<thresh.seqdepth)])+0.2, 
@@ -327,6 +328,33 @@ abline(v=seq(8.5,24.5,8), lty=2, col="grey")
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_readscount.jpeg?raw=true)
+
+Plot MOTUs count per sample and across controls to set up a cut-off and indicate with an asterisk the position of the samples below such cut-off at the library plate.
+
+
+```
+layout(matrix(c(1,1,1,2,5,5,3,5,5,4,5,5), 4, 3, byrow = TRUE))
+barplot(specnumber(OBI@reads, MARGIN=1), col=COL.all, border=BOR.all, xlab="Samples", ylab="Nb OTUs", cex.names=0.5, main="MOTUs count")
+
+hist(log10(specnumber(OBI@reads)[-CONTROLS]), breaks=40, col=rgb(0,0,1,0.5), main="PCR CTL", xlab="log10 number of OTUs", ylab="Nb samples", xlim=c(0,max(log10(specnumber(OBI@reads)))+0.1), lty="blank")
+hist(log10(specnumber(OBI@reads)[PCR_CTL]), breaks=40, col=rgb(1,0,0,0.5), add=T, lty="blank")
+hist(log10(specnumber(OBI@reads)[-CONTROLS]), breaks=40, col=rgb(0,0,1,0.5), main="EMPTY", xlab="log10 number of OTUs", ylab="Nb samples", xlim=c(0,max(log10(specnumber(OBI@reads)))+0.1), lty="blank")
+hist(log10(specnumber(OBI@reads)[EMPTY]), breaks=40, col=rgb(1,0,0,0.5), add=T, lty="blank")
+hist(log10(specnumber(OBI@reads)[-CONTROLS]), breaks=40, col=rgb(0,0,1,0.5), main="POS CTL", xlab="log10 number of OTUs", ylab="Nb samples", xlim=c(0,max(log10(specnumber(OBI@reads)))+0.1), lty="blank")
+hist(log10(specnumber(OBI@reads)[POS_CTL]), breaks=40, col=rgb(1,0,0,0.5), add=T, lty="blank")
+
+# Set up cut-off value after visual inspection of the previous histograms
+thresh.rich=1.2
+abline(v=thresh.rich, col="black", lty=2, lwd=2); mtext(side=4, paste("Cut-off < ", thresh.rich, sep=""), cex=0.8, font=3)
+
+plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, xlab="", ylab="", main="Samples position at library plates")
+points(as.numeric(OBI@samples$yPlate[which(log10(specnumber(OBI@reads))<thresh.rich)]),
+       as.numeric(OBI@samples$xPlate[which(log10(specnumber(OBI@reads))<thresh.rich)])+0.2,
+       pch=8, cex=0.5, lwd=1.5, col='yellow4')
+abline(v=seq(8.5,24.5,8), lty=2, col="grey")
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_motuscount.jpeg?raw=true)
 
 
 
