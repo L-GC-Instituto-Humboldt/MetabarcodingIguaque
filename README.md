@@ -362,73 +362,72 @@ abline(v=seq(8.5,24.5,8), lty=2, col="grey")
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_motuscount.jpeg?raw=true)
 
-Plot taxonomic resolution of reads and MOTUs assignments both before and after filtering by a given identity score threshold and export a table summarising results of taxonomic assignment.
+Plot taxonomic resolution of reads and MOTUs assignments both before and after filtering by a given best identity score threshold and export a table summarising the taxonomic assignment results.
 
 ```
-# Function TaxoRes
-TaxoRes=function(x,y,z, thresh){
-  #x=metabarcoding object
-  #y=column name for taxonomic rank
-  #z=column name for identification score
-  #thresh=threshold below which sequences are considered as not really identified
+# Input data
+x = OBI; y = "rank_ok"; z = "bid_ok"
+thresh = 0.95
   
-  #inital settings
-  require(ROBITools)
-  #a vector encompassing all possible taxonomic levels
-  taxorank=c("superkingdom", "kingdom", "subkingdom", "superphylum", "phylum", "subphylum", "superclass", "class", "subclass",
-             "superorder", "order", "suborder", "infraorder", "superfamily", "family", "subfamily", "supertribe", "tribe",
+# All possible taxonomic levels
+taxorank=c("superkingdom", "kingdom", "subkingdom", "superphylum", "phylum", "subphylum", "superclass", "class", "subclass",
+             "superorder", "order", "suborder", "infraorder", "superfamily", "family", "subfamily", "supertribe", "tribe", 
              "subtribe", "supergenus", "genus", "subgenus", "superspecies", "species", "subspecies", "varietas", "no rank")
   
-  #nb of otus
-  tmp=table(x@motus[y])
-  taxores.otu=tmp[match(taxorank, names(tmp))]
-  names(taxores.otu)=taxorank
-  taxores.otu[which(is.na(taxores.otu)==T)]=0
+# Number of MOTUs
+tmp=table(x@motus[y])
+taxores.otu=tmp[match(taxorank, names(tmp))]
+names(taxores.otu)=taxorank
+taxores.otu[which(is.na(taxores.otu)==T)]=0
   
-  #nb of reads
-  tmp=aggregate(x@motus$count, by=list(x@motus[,y]), sum)
-  taxores.reads=tmp[match(taxorank,tmp[,1]),2]
-  names(taxores.reads)=taxorank
-  taxores.reads[which(is.na(taxores.reads))]=0
+# Number of reads
+tmp=aggregate(x@motus$count, by=list(x@motus[,y]), sum)
+taxores.reads=tmp[match(taxorank,tmp[,1]),2]
+names(taxores.reads)=taxorank
+taxores.reads[which(is.na(taxores.reads))]=0
   
-  #set below thresh to not assigned
-  tmp=x@motus[,y]
-  tmp[which(OBI@motus[,z]<thresh)]="not assigned"
+# Set below threshold to not assigned
+tmp=x@motus[,y]
+tmp[which(OBI@motus[,z]<thresh)]="not assigned"
   
-  #nb of reads above thresh
-  tmp2=aggregate(OBI@motus$count, by=list(tmp), sum)
-  taxores.reads.t=tmp2[match(c(taxorank, "not assigned"),tmp2[,1]),2]
-  names(taxores.reads.t)=c(taxorank, "not assigned")
-  taxores.reads.t[which(is.na(taxores.reads.t))]=0
+# Number of reads above threshold
+tmp2=aggregate(OBI@motus$count, by=list(tmp), sum)
+taxores.reads.t=tmp2[match(c(taxorank, "not assigned"),tmp2[,1]),2]
+names(taxores.reads.t)=c(taxorank, "not assigned")
+taxores.reads.t[which(is.na(taxores.reads.t))]=0
   
-  #nb of otus above thresh
-  tmp2=table(tmp)
-  taxores.otu.t=tmp2[match(c(taxorank, "not assigned"), names(tmp2))]
-  names(taxores.otu.t)=c(taxorank, "not assigned")
-  taxores.otu.t[which(is.na(taxores.otu.t))]=0
-  
-  layout(matrix(c(2,3,1,4,5,1),3,2),heights=c(1,1,0.4))
-  col.tmp=c(rainbow(length(taxorank)-1,start=0, end=0.5, alpha=0.6), "lightgrey", "darkgrey")
-  par(mar=c(2,2,1,1), oma=c(0,0,2,0))
-  frame()
-  legend("bottom", names(taxores.otu.t), ncol=5, cex=0.7, fill=col.tmp, bty="n")
-  pie(taxores.otu, col=col.tmp, border="lightgrey", labels="", clockwise=T)
-  mtext("All data", side=2, cex=0.8)
-  mtext(expression(MOTUs), side=3, cex=0.8)
-  pie(taxores.otu.t, col=col.tmp, border="lightgrey", labels="", clockwise=T)
-  mtext(paste("Best identities >", thresh) , side=2, cex=0.8)
-  pie(taxores.reads, col=col.tmp, border="lightgrey", labels="", clockwise=T)
-  mtext("Reads", side=3, cex=0.8)
-  pie(taxores.reads.t, col=col.tmp, border="lightgrey", labels="", clockwise=T)
-  
-  out=data.frame(otu=c(taxores.otu,0), reads=c(taxores.reads,0), otu.thresh=taxores.otu.t, reads.thresh=taxores.reads.t)
-  rownames(out)[length(taxorank)+1]="not assigned"
-  out
-}
+# Number of MOTUs above threshold
+tmp2=table(tmp)
+taxores.otu.t=tmp2[match(c(taxorank, "not assigned"), names(tmp2))]
+names(taxores.otu.t)=c(taxorank, "not assigned")
+taxores.otu.t[which(is.na(taxores.otu.t))]=0
 
-raw.taxores.all=TaxoRes(OBI,"rank_ok", "bid_ok", 0.95)
+# Plots taxonomic resolution
+layout(matrix(c(2,4,1,3,5,1,6,7,7),3,3),heights=c(1,1,0.4))
+col.tmp=c(rainbow(length(taxorank)-1,start=0, end=0.5, alpha=0.6), "lightgrey", "darkgrey")
+par(mar=c(2,2,1,1), oma=c(0,0,2,0))
+frame()
+legend("bottom", names(taxores.otu.t), ncol=5, cex=0.7, fill=col.tmp, bty="n")
+pie(taxores.reads, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+mtext("All data", side=3, cex=0.8)
+mtext("Reads", side=2, cex=0.8)
+pie(taxores.reads.t, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+mtext(paste("Best identities >", thresh) , side=3, cex=0.8)
+pie(taxores.otu, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+mtext("MOTUs", side=2, cex=0.8)
+pie(taxores.otu.t, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+  
+## Plot reads and MOTUs with low identification scores
+par(mar=c(1,4,1,2))
+weighted.hist(OBI@motus[, "bid_ok"],OBI@motus[, "count"],breaks=20,col=COL, ylab="Nb reads")
+par(mar=c(8,4,3,2))
+hist(OBI@motus[, "bid_ok"], breaks=40, col=COL, xlab="Ecotag scores", main="", ylab="Nb. MOTUs")
+abline(v=thresh, lty=2, lwd=2)
+  
 
 # Export table
+raw.taxores.all=data.frame(otu=c(taxores.otu,0), reads=c(taxores.reads,0), otu.thresh=taxores.otu.t, reads.thresh=taxores.reads.t)
+rownames(raw.taxores.all)[length(taxorank)+1]="not assigned"
 write.table(raw.taxores.all, paste(stri_sub(OBJ, 1, -5), "_taxo_idscores.tab", sep=""), 
             row.names=T, col.names=T, quote=F, sep="\t")
 ```
@@ -476,6 +475,7 @@ pandoc.table(contseq,split.tables=Inf)
 write.table(contseq, paste(stri_sub(OBJ, 1, -5), "_contseq.tab", sep=""), 
             row.names=T, col.names=T, quote=F, sep="\t")
 ```
+
 Plot frequency of contaminant MOTUs in samples.
 
 ```
@@ -494,17 +494,63 @@ for(i in 1:(length(OBI.freq.parse-1)-1)){
   dm=dim(OBI.freq[(OBI.freq.parse[i]+1):(OBI.freq.parse[i+1]),CONTA])
   abline(v=seq(0,1,l=dm)
          [grep("BLK|NEG|M",rownames(OBI.freq)[(OBI.freq.parse[i]+1):(OBI.freq.parse[i]+m4)])],
-         col=COL.neg, lty=3)
+         col=COL.neg, lty=3, lwd=0.5)
   axis(side=1,at=seq(0,1,l=dm),
        labels=rownames(OBI@samples)[(OBI.freq.parse[i]+1):(OBI.freq.parse[i]+dm)],
        las=2, cex.axis=0.3)
   axis(side=2, at=seq(0,1,l=length(CONTA)), labels=paste(CONTA, OBI@motus[CONTA,"sci_name_ok"]),
        cex.axis=0.3, las=2)
 }
-mtext(side=3, paste("Frequency of contaminant sequences in samples. N =", length(CONTA)), outer=T, cex=1.5)
+mtext(side=3, paste("Frequency of contaminant MOTUs in samples based on its abundance in controls. N =", length(CONTA)), outer=T, cex=1.5)
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_contseq.jpeg?raw=true)
+
+Identify odd MOTUs with low identification scores and plot its frequency in samples.
+
+```
+# Identify odd MOTUs
+tmp=rownames(OBI@motus)[which(OBI@motus[, "bid_ok"]<thresh)]
+ODDOTU=if(length(grep("cluster", rownames(OBI@motus)))!=0) {
+  c(tmp[which(is.na(OBI2@motus[tmp, "cluster95"])==T)],
+    rownames(OBI2@motus)[which(is.na(match(OBI2@motus[,"cluster95"],unique(OBI2@motus[tmp, "cluster95"][-which(is.na(OBI2@motus[tmp,"cluster95"])==T)])))==F)])
+} else {
+  tmp
+}
+
+# Plot frequency of odd MOTUs in samples
+par(mfrow=c(2,2), oma=c(0,0,2,0), mar=c(3,5,1,1))
+for(i in 1:(length(OBI.freq.parse)-1)){
+  image(log10(OBI.freq[(OBI.freq.parse[i]+1):(OBI.freq.parse[i+1]),ODDOTU]), xaxt="n", yaxt="n", col=rainbow(12))
+  dm=dim(OBI.freq[(OBI.freq.parse[i]+1):(OBI.freq.parse[i+1]),ODDOTU])
+  abline(v=seq(0,1,l=dm)
+         [grep("BLK|NEG|M",rownames(OBI.freq)[(OBI.freq.parse[i]+1):(OBI.freq.parse[i]+round(nrow(OBI.freq)/4, digit=0))])],
+         col=COL.neg, lty=3)
+  axis(side=1,at=seq(0,1,l=dm, digits=0),
+       labels=rownames(OBI.freq)[(OBI.freq.parse[i]+1):(OBI.freq.parse[i]+dm)],
+       las=2, cex.axis=0.3)
+  axis(side=2, at=seq(0,1,l=length(ODDOTU)), labels= OBI@motus[ODDOTU,"sci_name_ok"],cex.axis=0.3, las=2)
+}
+mtext(side=3, paste("Frequency of odd MOTUs in samples based on low ecotag scores. N =", length(ODDOTU)), outer=T, cex=1)
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_oddseq.jpeg?raw=true)
+
+
+
+
+
+
+
+Plot heavily contaminated samples.
+
+```
+
+```
+
+
+
+
 
 
 
