@@ -479,10 +479,32 @@ write.table(contseq, paste(stri_sub(OBJ, 1, -5), "_contseq.tab", sep=""),
 Plot frequency of contaminant MOTUs in samples.
 
 ```
+# Frequency of contaminant in samples
+OBI.freq=decostand(OBI@reads,"total",1)
 
+# Set up a four-panels plot
+m4 <- round(nrow(OBI@samples)/4, digit=0)
+if (m4*4!=nrow(OBI@samples)) {m4 <- m4+1}
+OBI.freq.parse=c(seq(0,round(nrow(OBI@samples), digit=0),m4), nrow(OBI@samples))
+
+#Data visualization
+par(mfrow=c(2,2), oma=c(0,0,2,0), mar=c(3,5,1,1))
+for(i in 1:(length(OBI.freq.parse-1)-1)){
+  image(-log10(OBI.freq[(OBI.freq.parse[i]+1):(OBI.freq.parse[i+1]),CONTA]), xaxt="n", yaxt="n", col=rainbow(12))
+  dm=dim(OBI.freq[(OBI.freq.parse[i]+1):(OBI.freq.parse[i+1]),CONTA])
+  abline(v=seq(0,1,l=dm)
+         [grep("BLK|NEG|M",rownames(OBI.freq)[(OBI.freq.parse[i]+1):(OBI.freq.parse[i]+m4)])],
+         col=COL.neg, lty=3)
+  axis(side=1,at=seq(0,1,l=dm),
+       labels=rownames(OBI@samples)[(OBI.freq.parse[i]+1):(OBI.freq.parse[i]+dm)],
+       las=2, cex.axis=0.3)
+  axis(side=2, at=seq(0,1,l=length(CONTA)), labels=paste(CONTA, OBI@motus[CONTA,"sci_name_ok"]),
+       cex.axis=0.3, las=2)
+}
+mtext(side=3, paste("Frequency of contaminant sequences in samples. N =", length(CONTA)), outer=T, cex=1.5)
 ```
 
-
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_contseq.jpeg?raw=true)
 
 
 
