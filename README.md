@@ -255,6 +255,8 @@ OBI@motus$scientific_name_ok=OBI@motus$scientific_name
 # Export matrix
 tmp=t(OBI@reads)
 colnames(tmp)=paste("sample:", colnames(tmp), sep="")
+
+# Export table
 write.table(data.frame(OBI@motus,tmp), paste(stri_sub(OBJ, 1, -5), "_taxo.tab", sep=""), row.names=FALSE, col.names=T, quote=F, sep="\t")
 ```
 
@@ -355,6 +357,80 @@ abline(v=seq(8.5,24.5,8), lty=2, col="grey")
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_motuscount.jpeg?raw=true)
+
+Plot taxonomic resolution of reads and MOTUs assignments both before and after filtering by a given identity score threshold and export a table summarising results of taxonomic assignment.
+
+```
+# Function TaxoRes
+TaxoRes=function(x,y,z, thresh){
+  #x=metabarcoding object
+  #y=column name for taxonomic rank
+  #z=column name for identification score
+  #thresh=threshold below which sequences are considered as not really identified
+  
+  #inital settings
+  require(ROBITools)
+  #a vector encompassing all possible taxonomic levels
+  taxorank=c("superkingdom", "kingdom", "subkingdom", "superphylum", "phylum", "subphylum", "superclass", "class", "subclass",
+             "superorder", "order", "suborder", "infraorder", "superfamily", "family", "subfamily", "supertribe", "tribe",
+             "subtribe", "supergenus", "genus", "subgenus", "superspecies", "species", "subspecies", "varietas", "no rank")
+  
+  #nb of otus
+  tmp=table(x@motus[y])
+  taxores.otu=tmp[match(taxorank, names(tmp))]
+  names(taxores.otu)=taxorank
+  taxores.otu[which(is.na(taxores.otu)==T)]=0
+  
+  #nb of reads
+  tmp=aggregate(x@motus$cluster_weight, by=list(x@motus[,y]), sum)
+  taxores.reads=tmp[match(taxorank,tmp[,1]),2]
+  names(taxores.reads)=taxorank
+  taxores.reads[which(is.na(taxores.reads))]=0
+  
+  #set below thresh to not assigned
+  tmp=x@motus[,y]
+  tmp[which(OBI@motus[,z]<thresh)]="not assigned"
+  
+  #nb of reads above thresh
+  tmp2=aggregate(OBI@motus$cluster_weight, by=list(tmp), sum)
+  taxores.reads.t=tmp2[match(c(taxorank, "not assigned"),tmp2[,1]),2]
+  names(taxores.reads.t)=c(taxorank, "not assigned")
+  taxores.reads.t[which(is.na(taxores.reads.t))]=0
+  
+  #nb of otus above thresh
+  tmp2=table(tmp)
+  taxores.otu.t=tmp2[match(c(taxorank, "not assigned"), names(tmp2))]
+  names(taxores.otu.t)=c(taxorank, "not assigned")
+  taxores.otu.t[which(is.na(taxores.otu.t))]=0
+  
+  layout(matrix(c(2,3,1,4,5,1),3,2),heights=c(1,1,0.4))
+  col.tmp=c(rainbow(length(taxorank)-1,start=0, end=0.5, alpha=0.6), "lightgrey", "darkgrey")
+  par(mar=c(2,2,1,1), oma=c(0,0,2,0))
+  frame()
+  legend("bottom", names(taxores.otu.t), ncol=5, cex=0.7, fill=col.tmp, bty="n")
+  pie(taxores.otu, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+  mtext("All data", side=2, cex=0.8)
+  mtext(expression(MOTUs), side=3, cex=0.8)
+  pie(taxores.otu.t, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+  mtext(paste("Best identities >", thresh) , side=2, cex=0.8)
+  pie(taxores.reads, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+  mtext("Reads", side=3, cex=0.8)
+  pie(taxores.reads.t, col=col.tmp, border="lightgrey", labels="", clockwise=T)
+  
+  out=data.frame(otu=c(taxores.otu,0), reads=c(taxores.reads,0), otu.thresh=taxores.otu.t, reads.thresh=taxores.reads.t)
+  rownames(out)[length(taxorank)+1]="not assigned"
+  out
+}
+
+raw.taxores.all=TaxoRes(OBI,"rank_ok", "bid_ok", 0.95)
+
+# Export table
+write.table(raw.taxores.all, paste(stri_sub(OBJ, 1, -5), "_taxo_taxoscores.tab", sep=""), 
+            row.names=T, col.names=T, quote=F, sep="\t")
+
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_taxoscores.jpeg?raw=true)
 
 
 
