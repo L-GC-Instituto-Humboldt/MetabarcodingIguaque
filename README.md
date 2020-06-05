@@ -192,7 +192,9 @@ library(stringr)
 Aggregate sequences from the same cluster (MOTU). Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
 
 ```
-tab <- read.csv("iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.tab", sep="\t", header=T, check.names=F)
+# OBITool output
+OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
+tab <- read.csv(OBI_OBJ, sep="\t", header=T, check.names=F)
 # Extract sequence ID, taxonomic DB matching score and sequence, and cluster size
 match <- tab[,c(1,3,4,8)]
 # Extract taxonomic information and sequence
@@ -210,8 +212,10 @@ a2 <- which(colnames(tab) %in% grep("sample:TNEGPART.*[[:digit:]]$", colnames(ta
 for (i in c(a1, a2)) {
   colnames(tab)[i] <- paste(colnames(tab)[i], "a", sep="")
 }
+# Rename count column
+colnames(tab)[4] <- "count"
 # Export the matrix as a tab-delimited table
-write.table(tab, "iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3_ag.tab", quote=F, sep="\t", row.names=F)
+write.table(tab, paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep=""), quote=F, sep="\t", row.names=F)
 rm(tab, match, taxo, samples, a1, a2)
 ```
 
@@ -223,7 +227,7 @@ Set paths and file names.
 # Working directory
 PATH="[PATH]/Iguaque/"
 # Tab-delimited community matrix
-OBJ="/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag.tab"
+OBJ=paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
 # ecopcr database, used only for taxid manipulation purposes
 DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" 
 replication=T
@@ -382,7 +386,7 @@ TaxoRes=function(x,y,z, thresh){
   taxores.otu[which(is.na(taxores.otu)==T)]=0
   
   #nb of reads
-  tmp=aggregate(x@motus$cluster_weight, by=list(x@motus[,y]), sum)
+  tmp=aggregate(x@motus$count, by=list(x@motus[,y]), sum)
   taxores.reads=tmp[match(taxorank,tmp[,1]),2]
   names(taxores.reads)=taxorank
   taxores.reads[which(is.na(taxores.reads))]=0
@@ -392,7 +396,7 @@ TaxoRes=function(x,y,z, thresh){
   tmp[which(OBI@motus[,z]<thresh)]="not assigned"
   
   #nb of reads above thresh
-  tmp2=aggregate(OBI@motus$cluster_weight, by=list(tmp), sum)
+  tmp2=aggregate(OBI@motus$count, by=list(tmp), sum)
   taxores.reads.t=tmp2[match(c(taxorank, "not assigned"),tmp2[,1]),2]
   names(taxores.reads.t)=c(taxorank, "not assigned")
   taxores.reads.t[which(is.na(taxores.reads.t))]=0
@@ -425,12 +429,59 @@ TaxoRes=function(x,y,z, thresh){
 raw.taxores.all=TaxoRes(OBI,"rank_ok", "bid_ok", 0.95)
 
 # Export table
-write.table(raw.taxores.all, paste(stri_sub(OBJ, 1, -5), "_taxo_taxoscores.tab", sep=""), 
+write.table(raw.taxores.all, paste(stri_sub(OBJ, 1, -5), "_taxo_idscores.tab", sep=""), 
             row.names=T, col.names=T, quote=F, sep="\t")
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_idscores.jpeg?raw=true)
+
+Identify contaminant MOTUs as those that have a maximum frequency in controls. 
+
+```
+# Function ContaSlayer
+ContaSlayer=function(x,y,clust=NULL){
+  #x a metabarcoding object
+  #y a vector of samples names where conta are suspected to be (typically negative controls)
+  #clust a column name in x@motus which indicates the clustering level used for aggregating taxa (facultative)
+  require(vegan)
+  x.fcol=decostand(x@reads, "total", 2)
+  x.max=rownames(x.fcol[apply(x.fcol, 2, which.max),])
+  conta1=colnames(x)[which(is.na(match(x.max,y))==F)]
+  if (length(clust)!=0) {
+    conta2=c(conta1[which(is.na(x@motus[conta1, clust])==T)],
+             rownames(x@motus)[which(is.na(match(x@motus[,clust],unique(x@motus[conta1, clust][-which(is.na(x@motus[conta1,clust])==T)])))==F)])
+  } else {
+    conta2=conta1
+  }
+  conta2
+}  
+
+# Identify MOTUs with a max. abundance in controls
+CONTA=ContaSlayer(OBI,rownames(OBI)[CONTROLS], NULL)
+
+# Display taxonomic and abundance information of contaminant MOTUs
+contseq <- data.frame(OBI@motus[CONTA,c(grep("best_identity", colnames(OBI@motus)),grep("best_match", colnames(OBI@motus)))],
+                      OBI@motus[CONTA,c("bid_ok", "scientific_name_ok","count")],
+                      do.call("rbind", lapply(CONTA, function(x) {
+                        ind=which.max(OBI@reads[,x])
+                        sample.max=names(ind)
+                        count.max=OBI@reads[sample.max,x]
+                        data.frame(sample.max, count.max)
+                      })),
+                      nb.sample.occ=unlist(lapply(CONTA, function(x) length(which(OBI@reads[,x]!=0))))
+)
+pandoc.table(contseq,split.tables=Inf)
+
+# Export in a table taxonomic and abundance information of contaminant MOTUs
+write.table(contseq, paste(stri_sub(OBJ, 1, -5), "_contseq.tab", sep=""), 
+            row.names=T, col.names=T, quote=F, sep="\t")
+```
+Plot frequency of contaminant MOTUs in samples.
 
 ```
 
-![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_taxoscores.jpeg?raw=true)
+```
+
 
 
 
