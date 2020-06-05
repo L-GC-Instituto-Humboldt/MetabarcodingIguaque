@@ -537,21 +537,48 @@ mtext(side=3, paste("Frequency of odd MOTUs in samples based on low ecotag score
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_oddseq.jpeg?raw=true)
 
 
- 
 
 
 
 
-Plot heavily contaminated samples.
 
-```
+Plot samples with more than 1% of MOTUs either more abundant in the controls than in the samples or with a low ecotag score.
 
 ```
+# Heavily contaminated samples based on MOTUs more abundant in controls
+par(mar=c(5,5,2,1), mfrow=c(2,2), oma=c(0,0,2,0))
+hist(log10(rowSums(OBI.freq[-CONTROLS,CONTA])+1e-5), breaks=40, col=COL, xlim=log10(c(0,1)+1e-5), main="", xlab="log10 proportion contaminant reads")
+
+# Most likely to be bad samples
+thresh.contasamp=-2
+CONTASAMP=rownames(OBI)[-CONTROLS][which(log10(rowSums(OBI.freq[-CONTROLS,CONTA])+1e-5)>=thresh.contasamp)]
+abline(v=thresh.contasamp, lty=2, lwd=2); mtext(paste("Cut-off >= ", thresh.contasamp, sep=""),side=3, line=0, cex=0.7, font=3)
+
+plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, cex=1, xlab="y plate", ylab="x plate")
+abline(v=seq(8.5,24.5,8), lty=2, col="grey")
+points(as.numeric(OBI@samples$yPlate[match(CONTASAMP,rownames(OBI))]), 
+       as.numeric(OBI@samples$xPlate[match(CONTASAMP,rownames(OBI))])+0.2,
+       pch=8, cex=0.7, lwd=2)
 
 
+# Sample with many odd OTUs
+hist(log10(rowSums(OBI.freq[-CONTROLS,ODDOTU])+1e-5), breaks=20, col=COL, xlim=log10(c(0,1)+1e-5), main="", xlab="log10 proportion odd MOTUs (low ecotag scores)")
 
+# Most likely to be bad samples
+thresh.oddotusamp=-2
+ODDOTUSAMP=rownames(OBI)[which(log10(rowSums(OBI.freq[,ODDOTU])+1e-5)>=thresh.oddotusamp)]
+abline(v=thresh.oddotusamp, lty=2, lwd=2); mtext(paste("Cut-off >= ", thresh.oddotusamp, sep=""),side=3, line=0, cex=0.7, font=3)
 
+plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, cex=1, xlab="y plate", ylab="x plate")
+abline(v=seq(8.5,95.5,8), lty=2, col="grey")
+points(as.numeric(OBI@samples$yPlate[match(ODDOTUSAMP,rownames(OBI))]), 
+       as.numeric(OBI@samples$xPlate[match(ODDOTUSAMP,rownames(OBI))])+0.2,
+       pch=8, cex=0.7, lwd=2)
 
+mtext(side=3, "Samples with >1% of contaminant and odd MOTUs", outer=T)
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_conoddsamples.jpeg?raw=true)
 
 
 ## Data analysis
