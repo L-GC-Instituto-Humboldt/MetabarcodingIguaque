@@ -536,12 +536,6 @@ mtext(side=3, paste("Frequency of odd MOTUs in samples based on low ecotag score
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_oddseq.jpeg?raw=true)
 
-
-
-
-
-
-
 Plot samples with more than 1% of MOTUs either more abundant in the controls than in the samples or with a low ecotag score.
 
 ```
@@ -579,6 +573,82 @@ mtext(side=3, "Samples with >1% of contaminant and odd MOTUs", outer=T)
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_conoddsamples.jpeg?raw=true)
+
+
+### Contaminant and odd MOTUs filtering
+
+Get rid of previously identified contaminant and odd MOTUs and check how this affects the similarity patterns between and within controls, samples, and replicates.
+
+```
+# Duplicate matrix and remove contaminant and odd MOTUs
+OBI2<-OBI
+OBI2@reads=OBI@reads[,-match(unique(c(CONTA, ODDOTU)), colnames(OBI@reads))]
+OBI2@motus=OBI2@motus[which(rownames(OBI2@motus) %in% colnames(OBI2@reads)),]
+OBI2@samples=OBI2@samples[which(rownames(OBI2@samples) %in% rownames(OBI2@reads)),]
+OBI2@samples$reads.contaodd=rowSums(OBI2@reads)
+OBI2@samples$otu100.contaodd=specnumber(OBI2@reads)
+OBI2@motus$count=colSums(OBI2@reads)
+
+# Calculate pairwise similarity distances
+# Function vegsim
+vegsim=function(x) {
+  x.dist=vegdist(x, "bray")
+  x.sim=1-as.matrix(x.dist)
+  out=as.dist(x.sim, diag=F, upper=F)
+  out
+}
+OBI.sim=vegsim(OBI@reads)
+OBI.sim2=vegsim(OBI2@reads)
+
+# Convert similarity matrix into a three-columns format list
+# Function simlist
+simlist=function(x) {
+  out=data.frame(t(combn(labels(x),2)), as.numeric(x))
+  names(out) <- c("obj1", "obj2", "sim")
+  out
+}
+OBI.simlist=simlist(OBI.sim); OBI.simlist2=simlist(OBI.sim2)
+
+# Annotate pairwise comparisons by type: sample vs. control, replicate vs. replicate, etc.
+# Functiont comp.type
+comp.type=function(x,y,z1,z2){
+  #x a distance list table
+  #y a metabarcoding object
+  #z1 a vector indicating negative indices in the metabarcoding object
+  #z2 a factor of sample names, repeats are indicated with the same sample name
+  #controls intravar
+  x$type=rep(NA, nrow(x))
+  ind.negneg=intersect(which(is.na(match(as.vector(x[,1]), rownames(y)[z1]))==F), which(is.na(match(as.vector(x[,2]), rownames(y)[z1]))==F))
+  x[ind.negneg,"type"]="CONTROL-CONTROL"
+  #controls vs sample var
+  ind.negsamp=c(intersect(which(is.na(match(as.vector(x[,1]), rownames(y)[z1]))==F), which(is.na(match(as.vector(x[,2]), rownames(y)[z1]))==T)),
+                intersect(which(is.na(match(as.vector(x[,2]), rownames(y)[z1]))==F), which(is.na(match(as.vector(x[,1]), rownames(y)[z1]))==T)))
+  x[ind.negsamp,"type"]="CONTROL-SAMPLE"
+  #replicates intravar
+  repltech=names(table(z2))[which(table(z2)>1)]
+  ind.repin=unlist(lapply(repltech, function(a) intersect(grep(a,x[,1]), grep(a, x[,2]))))
+  x[ind.repin, "type"]="REPLICATES"
+  #sample vs sample var
+  x[-c(ind.negneg, ind.negsamp, ind.repin),"type"]="SAMPLE-SAMPLE"
+  x
+}
+
+# Identify the replicates
+REPLICATES=as.factor(gsub("a", "", rownames(OBI@samples))) # factor, each level is a sample
+REPLICATES=gsub("b", "", REPLICATES)
+REPLICATES=gsub("c", "", REPLICATES)
+
+# Plot
+OBI.compsim=comp.type(OBI.simlist, OBI, CONTROLS, REPLICATES)
+OBI.compsim2=comp.type(OBI.simlist2, OBI, CONTROLS, REPLICATES)
+par(mfrow=c(1,2), mar=c(10,5,2,1))
+boxplot(OBI.compsim$sim~OBI.compsim$type, col=COL, border=BOR, main="Raw data", las=2, ylab="Pairwise similarity")
+boxplot(OBI.compsim2$sim~OBI.compsim2$type, col=COL, border=BOR, main="After conta/odd MOTUs filtering", las=2,  ylab="Pairwise similarity")
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_motusfiltering.jpeg?raw=true)
+
+
 
 
 ## Data analysis
