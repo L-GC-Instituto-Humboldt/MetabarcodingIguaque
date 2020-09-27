@@ -588,6 +588,8 @@ OBI2@samples=OBI2@samples[which(rownames(OBI2@samples) %in% rownames(OBI2@reads)
 OBI2@samples$reads.contaodd=rowSums(OBI2@reads)
 OBI2@samples$otu100.contaodd=specnumber(OBI2@reads)
 OBI2@motus$count=colSums(OBI2@reads)
+# Remove rows with all zero counts
+OBI2@reads <- OBI2@reads[-which(rowSums(OBI2@reads)==0),]
 
 # Calculate pairwise similarity distances
 # Function vegsim
