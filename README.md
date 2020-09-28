@@ -173,26 +173,13 @@ obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects
 
 ## Community matrix curation
 
-Post-OBITools filtering is done in ```R```. It requires loading the following packages:
-
-```
-library(vegan)
-library(lattice)
-library(ROBITools)
-library(ROBITaxonomy)
-library(plotrix)
-library(ENmisc)
-library(igraph)
-library(pander)
-library(stringr)
-```
 
 ### MOTU's abundance pooling
 
 Aggregate sequences from the same cluster (MOTU). Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
 
 ```
-# OBITool output
+# OBITools output
 OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
 tab <- read.csv(OBI_OBJ, sep="\t", header=T, check.names=F)
 # Extract sequence ID, taxonomic DB matching score and sequence, and cluster size
@@ -221,12 +208,27 @@ rm(tab, match, taxo, samples, a1, a2)
 
 ### Envirnoment setting
 
+Post-OBITools filtering is done in ```R```. It requires loading the following packages:
+
+```
+library(vegan)
+library(lattice)
+library(ROBITools)
+library(ROBITaxonomy)
+library(plotrix)
+library(ENmisc)
+library(igraph)
+library(pander)
+library(stringr)
+```
+
 Set paths and file names.
 
 ```
 # Working directory
 PATH="[PATH]/Iguaque/"
 # Tab-delimited community matrix
+OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
 OBJ=paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
 # ecopcr database, used only for taxid manipulation purposes
 DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" 
@@ -583,13 +585,13 @@ Get rid of previously identified contaminant and odd MOTUs and check how this af
 # Duplicate matrix and remove contaminant and odd MOTUs
 OBI2<-OBI
 OBI2@reads=OBI@reads[,-match(unique(c(CONTA, ODDOTU)), colnames(OBI@reads))]
+COL.all2 <- COL.all[-which(rowSums(OBI2@reads)==0)]
+OBI2@reads <- OBI2@reads[-which(rowSums(OBI2@reads)==0),]
 OBI2@motus=OBI2@motus[which(rownames(OBI2@motus) %in% colnames(OBI2@reads)),]
 OBI2@samples=OBI2@samples[which(rownames(OBI2@samples) %in% rownames(OBI2@reads)),]
 OBI2@samples$reads.contaodd=rowSums(OBI2@reads)
 OBI2@samples$otu100.contaodd=specnumber(OBI2@reads)
 OBI2@motus$count=colSums(OBI2@reads)
-# Remove rows with all zero counts
-OBI2@reads <- OBI2@reads[-which(rowSums(OBI2@reads)==0),]
 
 # Calculate pairwise similarity distances
 # Function vegsim
