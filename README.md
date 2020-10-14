@@ -81,7 +81,7 @@ awk '/^>/{gsub(";$", "", $1);print;}1' insects_ref_clean_uniq.fasta | obiannotat
 Align reads from paired-end sequencing. ```--index-file``` points to the file containing the illumina index reads.
 
 ```
-illuminapairedend --sanger --score-min=40 --index-file=index.fastq -r iguaque_reverse.fastq iguaque_forward.fastq > iguaque_align.fastq
+illuminapairedend --sanger --score-min=40 --index-file=index.fastq -r iguaque_reverse.fastq iguaque_forward.fastq > iguaque_align.fasta
 ```
 
 Assign sequences to their original samples based on DNA tags and primers. ```-t``` specifies the file containing the samples description. ```-u``` specifies a filename to store the sequences unassigned to any sample. ```-e``` specifies the number of errors allowed for matching primers.
@@ -170,17 +170,35 @@ Sort the sequences according to their count and export all the information in a 
 obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.fasta | obitab -o > iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects_t3.tab
 ```
 
+### MOTUs aggregation
 
-## Community matrix curation
-
-
-### MOTU's abundance pooling
-
-Aggregate sequences from the same cluster (MOTU). Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
+The below post-OBITools filtering and visualisation steps are done in ```R``` based on the OBITools output object.
 
 ```
 # OBITools output
 OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
+
+```
+
+They require loading the following packages:
+
+```
+library(vegan)
+library(lattice)
+library(ROBITools)
+library(ROBITaxonomy)
+library(plotrix)
+library(ENmisc)
+library(igraph)
+library(pander)
+library(stringr)
+```
+
+### MOTUs aggregation
+
+Aggregate sequences from the same cluster (MOTU). Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
+
+```
 tab <- read.csv(OBI_OBJ, sep="\t", header=T, check.names=F)
 # Extract sequence ID, taxonomic DB matching score and sequence, and cluster size
 match <- tab[,c(1,3,4,8)]
@@ -206,21 +224,8 @@ write.table(tab, paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep=""), quote=F, se
 rm(tab, match, taxo, samples, a1, a2)
 ```
 
-### Envirnoment setting
+### Taxonomic formatting
 
-Post-OBITools filtering is done in ```R```. It requires loading the following packages:
-
-```
-library(vegan)
-library(lattice)
-library(ROBITools)
-library(ROBITaxonomy)
-library(plotrix)
-library(ENmisc)
-library(igraph)
-library(pander)
-library(stringr)
-```
 
 Set paths and file names.
 
@@ -228,7 +233,6 @@ Set paths and file names.
 # Working directory
 PATH="[PATH]/Iguaque/"
 # Tab-delimited community matrix
-OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
 OBJ=paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
 # ecopcr database, used only for taxid manipulation purposes
 DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" 
@@ -242,8 +246,6 @@ setwd(PATH)
 DB=read.taxonomy(DB_N)
 OBI=import.metabarcoding.data(OBJ)
 ```
-
-### Taxonomic formatting
 
 Standarise taxonomic information across all levels and export it as a new tab-delimited table. Note that ":" is replaced by "." in column names.
 
@@ -266,7 +268,8 @@ colnames(tmp)=paste("sample:", colnames(tmp), sep="")
 write.table(data.frame(OBI@motus,tmp), paste(stri_sub(OBJ, 1, -5), "_taxo.tab", sep=""), row.names=FALSE, col.names=T, quote=F, sep="\t")
 ```
 
-### Data quality inspection
+
+## Data quality inspection
 
 The following sections will output a serie of plots to visually inspect data quality based on presence and abundance of contaminant sequences and taxonomic assignment scores.
 
@@ -309,6 +312,8 @@ for (i in 1:length(OBI@samples$sample)) {
 rm(A,B,C,D,E,F,G,H)
 ```
 
+### Reads count
+
 Plot reads count per sample and across controls to set up a cut-off and indicate with an asterisk the position of the samples below such cut-off at the library plate.
 
 ```
@@ -337,6 +342,8 @@ abline(v=seq(8.5,24.5,8), lty=2, col="grey")
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_readscount.jpeg?raw=true)
 
+### MOTUs count
+
 Plot MOTUs count per sample and across controls to set up a cut-off and indicate with an asterisk the position of the samples below such cut-off at the library plate.
 
 
@@ -363,6 +370,8 @@ abline(v=seq(8.5,24.5,8), lty=2, col="grey")
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_motuscount.jpeg?raw=true)
+
+### Taxonomic resolution
 
 Plot taxonomic resolution of reads and MOTUs assignments both before and after filtering by a given best identity score threshold and export a table summarising the taxonomic assignment results.
 
@@ -425,16 +434,11 @@ weighted.hist(OBI@motus[, "bid_ok"],OBI@motus[, "count"],breaks=20,col=COL, ylab
 par(mar=c(8,4,3,2))
 hist(OBI@motus[, "bid_ok"], breaks=40, col=COL, xlab="Ecotag scores", main="", ylab="Nb. MOTUs")
 abline(v=thresh, lty=2, lwd=2)
-  
-
-# Export table
-raw.taxores.all=data.frame(otu=c(taxores.otu,0), reads=c(taxores.reads,0), otu.thresh=taxores.otu.t, reads.thresh=taxores.reads.t)
-rownames(raw.taxores.all)[length(taxorank)+1]="not assigned"
-write.table(raw.taxores.all, paste(stri_sub(OBJ, 1, -5), "_taxo_idscores.tab", sep=""), 
-            row.names=T, col.names=T, quote=F, sep="\t")
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_idscores.jpeg?raw=true)
+
+### Contaminant MOTUs
 
 Identify contaminant MOTUs as those that have a maximum frequency in controls. 
 
@@ -459,23 +463,6 @@ ContaSlayer=function(x,y,clust=NULL){
 
 # Identify MOTUs with a max. abundance in controls
 CONTA=ContaSlayer(OBI,rownames(OBI)[CONTROLS], NULL)
-
-# Display taxonomic and abundance information of contaminant MOTUs
-contseq <- data.frame(OBI@motus[CONTA,c(grep("best_identity", colnames(OBI@motus)),grep("best_match", colnames(OBI@motus)))],
-                      OBI@motus[CONTA,c("bid_ok", "scientific_name_ok","count")],
-                      do.call("rbind", lapply(CONTA, function(x) {
-                        ind=which.max(OBI@reads[,x])
-                        sample.max=names(ind)
-                        count.max=OBI@reads[sample.max,x]
-                        data.frame(sample.max, count.max)
-                      })),
-                      nb.sample.occ=unlist(lapply(CONTA, function(x) length(which(OBI@reads[,x]!=0))))
-)
-pandoc.table(contseq,split.tables=Inf)
-
-# Export in a table taxonomic and abundance information of contaminant MOTUs
-write.table(contseq, paste(stri_sub(OBJ, 1, -5), "_contseq.tab", sep=""), 
-            row.names=T, col.names=T, quote=F, sep="\t")
 ```
 
 Plot frequency of contaminant MOTUs in samples.
@@ -508,6 +495,8 @@ mtext(side=3, paste("Frequency of contaminant MOTUs in samples based on its abun
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_contseq.jpeg?raw=true)
 
+### Odd MOTUs
+
 Identify odd MOTUs with low identification scores and plot its frequency in samples.
 
 ```
@@ -537,6 +526,8 @@ mtext(side=3, paste("Frequency of odd MOTUs in samples based on low ecotag score
 ```
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_oddseq.jpeg?raw=true)
+
+### Samples with contaminant and odd MOTUs
 
 Plot samples with more than 1% of MOTUs either more abundant in the controls than in the samples or with a low ecotag score.
 
@@ -577,7 +568,7 @@ mtext(side=3, "Samples with >1% of contaminant and odd MOTUs", outer=T)
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_conoddsamples.jpeg?raw=true)
 
 
-### Contaminant and odd MOTUs filtering
+### Effect of MOTUs filtering
 
 Get rid of previously identified contaminant and odd MOTUs and check how this affects the similarity patterns between and within controls, samples, and replicates.
 
@@ -652,8 +643,109 @@ boxplot(OBI.compsim2$sim~OBI.compsim2$type, col=COL, border=BOR, main="After con
 
 ![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_motusfiltering.jpeg?raw=true)
 
+### Similarity across replicates
+
+Plot similarity scores among replicates of the same sample and among replicates of different samples.
+
+```
+# Detect outliers using a clustering approach
+###============= function quickg: graph construction
+quickg=function(x,col, nod.fac, thresh){
+  x.m=as.matrix(x)
+  g=graph.adjacency(x.m, mode="lower", weighted=T, diag=F)
+  V(g)$type=nod.fac
+  V(g)$color=as.vector(col)
+  sub.g=subgraph.edges(g, eids=E(g)[which(E(g)$weight>thresh)], delete.vertices=F)
+  sub.g
+}
+###============= end
 
 
+#Get two lists: one for similarity among replicates, and one among samples
+MyList_IntraSamp<-list()
+kk<-1
+MyList_InterSamp<-list()
+ll<-1
+for (i in 1:nrow(OBI.simlist2)) {
+  if( substr(OBI.simlist2[i,1],1,str_length(OBI.simlist2[i,1])-1) == substr(OBI.simlist2[i,2],1,str_length(OBI.simlist2[i,2])-1)) {
+    MyList_IntraSamp[[i]]<-OBI.simlist2[i,3]
+    kk<-kk+1 
+  } else {
+    MyList_InterSamp[[i]]<-OBI.simlist2[i,3]
+    ll<-ll+1
+  }
+}
+MyList_IntraSamp_OK<-unlist(MyList_IntraSamp)
+MyList_InterSamp_OK<-unlist(MyList_InterSamp)
+
+# Plot
+layout(matrix(c(2,1,1,3,1,1), 3,2))
+
+#Visualize similarity scores intra and inter-sample (log10 of sample similarity)
+hist(log10(MyList_InterSamp_OK),  col=rgb(0,0,1,0.5), main="", xlab="log10 sample similarity", ylab="Nb comparison", xlim=c(-5,0))
+hist(log10(MyList_IntraSamp_OK),  col=rgb(1,0,0,0.5), add=T)
+
+#Visualize similarity scores intra and inter-sample
+hist(MyList_IntraSamp_OK, col=COL, border=BOR, main="", xlab="Intra-sample similarity", breaks=20, xlim=c(0,1), freq=T)
+thresh.graph=0.1  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ !!!! CUTOFF HERE !!!!
+abline(v=thresh.graph, lty=2, lwd=2); mtext(side=3, paste("cutoff = ", thresh.graph), cex=0.7, font=3, outer=F)
+hist(MyList_InterSamp_OK, col=COL, border=BOR, main="", xlab="Inter-sample similarity", xlim=c(0,1), breaks=20, freq=T)
+thresh.graph=0.1  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ !!!! CUTOFF HERE !!!!
+abline(v=thresh.graph, lty=2, lwd=2); mtext(side=3, paste("cutoff = ", thresh.graph), cex=0.7, font=3, outer=F)
+
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_similarity.png?raw=true)
+
+### Similarity clusters
+
+Plot clusters of replicates based on their similarity scores.
+
+```
+##Generate cluster
+OBI.g2=quickg(OBI.sim2, COL.all2, COL.all2, thresh.graph)
+OBI.clust2=infomap.community(OBI.g2, nb.trials=100)
+
+##Visualize clusters: not mandatory
+par(mar=c(3,3,1,3))
+layout(matrix(c(1,1,2,3), 2,2))
+col.g=as.factor(membership(OBI.clust2))
+levels(col.g)=rainbow(max(membership(OBI.clust2)))
+coords=layout.fruchterman.reingold(OBI.g2)
+plot(OBI.g2, layout=coords, vertex.size=2, vertex.label=rownames(OBI2), vertex.color=as.vector(col.g), vertex.label.cex=0.7, vertex.label.dist=-0.2, vertex.frame.color=as.vector(col.g))
+legend("top", c("Sample", "Control"), pch=8, col=c("cyan4", "darkred"), cex=1, ncol=3)
+legend("bottom",paste("cluster", levels(as.factor(membership(OBI.clust2)))), pch=8, col=levels(col.g), cex=1, ncol=3)
+plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, cex=1, xlab="y plate", ylab="x plate")
+abline(v=seq(8.5,24.5,8), lty=2, col="grey")
+plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=1, col=BOR.all, bg=COL.all, cex=1, xlab="y plate", ylab="x plate")
+abline(v=seq(8.5,24.5,8), lty=2, col="grey")
+points(OBI@samples$yPlate, OBI@samples$xPlate, pch=8, cex=0.5, col=as.vector(col.g), lwd=2)
+
+```
+
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_clusters.png?raw=true)
+
+
+
+## Samples filtering
+
+THERE ARE TWO APPROACHES...
+
+### Approach A
+
+BLA BLA BLA
+
+```
+
+```
+
+### Approach B
+
+BLA BLA BLA
+
+```
+
+```
 
 ## Data analysis
 
