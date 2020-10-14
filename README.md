@@ -178,6 +178,9 @@ The below post-OBITools filtering and visualisation steps are done in ```R``` ba
 # OBITools output
 OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
 
+# ngsfilter file
+ngsfilt=read.table('/media/henry/UNTITLED/Henry_06June2019/Iguaque/ngsfiltering/ngsfilterIguaqueEuca.txt')
+
 # Working directory
 PATH="[PATH]/Iguaque/"
 setwd(PATH)
@@ -239,7 +242,6 @@ replication=T
 OBJ=paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
 DB=read.taxonomy(DB_N)
 OBI=import.metabarcoding.data(OBJ)
-
 OBI@motus$rank_ok=taxonomicrank(DB,OBI@motus$taxid)
 OBI@motus$species_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"species"))
 OBI@motus$genus_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"genus"))
@@ -250,11 +252,10 @@ OBI@motus$phylum_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"phyl
 OBI@motus$kingdom_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"kingdom"))
 OBI@motus$bid_ok=round(OBI@motus$best_identity, 3)
 OBI@motus$scientific_name_ok=OBI@motus$scientific_name
+
 # Export matrix
 tmp=t(OBI@reads)
 colnames(tmp)=paste("sample:", colnames(tmp), sep="")
-
-# Export table
 write.table(data.frame(OBI@motus,tmp), paste(stri_sub(OBJ, 1, -5), "_taxo.tab", sep=""), row.names=FALSE, col.names=T, quote=F, sep="\t")
 ```
 
@@ -284,9 +285,6 @@ BOR.all=rep("cyan4",nrow(OBI)); BOR.all[CONTROLS]="darkred"
 Index samples and controls, get theis position in the library preparation plates, and assign a color code. A ngsfilter file with coordinates of all the samples in the library preparation plates is needed per taxonomic group.
 
 ```
-# Modify path accordingly
-ngsfilt=read.table('/media/henry/UNTITLED/Henry_06June2019/Iguaque/ngsfiltering/ngsfilterIguaqueEuca.txt')
-
 #For each samples: add locations into plates 
 OBI@samples$xPlate<-rep("NA", length(OBI@samples$sample))
 OBI@samples$yPlate<-rep("NA", length(OBI@samples$sample))
