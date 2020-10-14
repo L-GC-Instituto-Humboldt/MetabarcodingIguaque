@@ -172,11 +172,15 @@ obisort -r -k count iguaque_align_filterE2_uniq_nl_setid_c10_assign_r140_insects
 
 ### MOTUs aggregation
 
-The below post-OBITools filtering and visualisation steps are done in ```R``` based on the OBITools output object.
+The below post-OBITools filtering and visualisation steps are done in ```R``` based on an OBITools output object.
 
 ```
 # OBITools output
 OBI_OBJ <- "/media/henry/UNTITLED/Henry_06June2019/Iguaque/2020/GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3.tab"
+
+# Working directory
+PATH="[PATH]/Iguaque/"
+setwd(PATH)
 
 ```
 
@@ -224,30 +228,18 @@ rm(tab, match, taxo, samples, a1, a2)
 
 ### Taxonomic formatting
 
-
-Set paths and file names.
-
-```
-# Working directory
-PATH="[PATH]/Iguaque/"
-# Tab-delimited community matrix
-OBJ=paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
-# ecopcr database, used only for taxid manipulation purposes
-DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" 
-replication=T
-```
-
-Import data.
-
-```
-setwd(PATH) 
-DB=read.taxonomy(DB_N)
-OBI=import.metabarcoding.data(OBJ)
-```
-
 Standarise taxonomic information across all levels and export it as a new tab-delimited table. Note that ":" is replaced by "." in column names.
 
 ```
+# ecopcr database, used only for taxid manipulation purposes
+DB_N="/media/henry/UNTITLED/Henry_06June2019/Iguaque/Pre2020/Reference_DB/embl_r134" 
+replication=T
+
+# Import data
+OBJ=paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
+DB=read.taxonomy(DB_N)
+OBI=import.metabarcoding.data(OBJ)
+
 OBI@motus$rank_ok=taxonomicrank(DB,OBI@motus$taxid)
 OBI@motus$species_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"species"))
 OBI@motus$genus_name_ok=scientificname(DB, taxonatrank(DB,OBI@motus$taxid,"genus"))
