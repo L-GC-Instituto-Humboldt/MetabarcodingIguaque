@@ -194,8 +194,6 @@ library(pander)
 library(stringr)
 ```
 
-### MOTUs aggregation
-
 Aggregate sequences from the same cluster (MOTU). Keep only the informative columns: id (col. 1), cluster count (col. 8), taxonomic information (col. 3, 4, 10:15, -2:-12), samples (col. 16:-13), and sequence (col. -1). Negative numbers indicate column position from the last to the first.
 
 ```
