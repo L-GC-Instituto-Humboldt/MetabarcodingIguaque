@@ -721,17 +721,270 @@ THERE ARE TWO APPROACHES...
 
 ### Approach A
 
-BLA BLA BLA
+Filter out samples that are not clustered with their relatives and samples that are clustered with control samples (BLK).
 
 ```
+# Detect samples that are clustered with TRUE control samples (Extration + PCR)
+TRUE_CONTROLS<-rownames(OBI)[CONTROLS][-grep('BLK', rownames(OBI)[CONTROLS])]
+tmp1=names(unlist(lapply(unique(membership(OBI.clust2)[TRUE_CONTROLS]),function(x)which(membership(OBI.clust2)[-CONTROLS]==x))))
 
+# Detect replicates that are not clustered with their relatives
+tmp3<-list()
+for (i in 1:length(unique(REPLICATES))) {
+  xx<-membership(OBI.clust2)[which(str_replace_all(rownames(OBI@samples), "[abc]", "")==unique(REPLICATES)[i])]
+  ##print(xx)
+  if (length(table(xx))==1) {
+    tmp3[[i]]<-NA 
+  }
+  if (length(table(xx))==2) {
+    titi<-min(as.vector(table(xx)))
+    tutu<-names(table(xx)[table(xx)==titi])
+    tmp3[[i]]<-names(xx[xx==tutu])
+  }
+  if (length(table(xx))==3) {
+    tmp3[[i]]<-names(xx)
+  }
+}
+
+tmp3<-unlist(tmp3)
+tmp3<-tmp3[!is.na(tmp3)]
+
+#Samples that are not clustered with their relatives + samples that are clustered with TRUE control samples 
+OUTGRAPH=unique(c(tmp3[-which(tmp3 %in% rownames(OBI)[CONTROLS]==T)], tmp1))
+
+#Data formatting (removal of outliers + controls)
+OBI3=OBI
+SMALL=rownames(OBI)[-CONTROLS][which(log10(rowSums(OBI@reads)[-CONTROLS])<thresh.seqdepth)]
+#Removal of all "bad" samples: OUTGRAPH (again choose the level of filtering) + those with low number of reads
+OBI3@reads=OBI3@reads[-na.omit(c(match(OUTGRAPH, rownames(OBI2@reads)),CONTROLS, match(SMALL, rownames(OBI2@reads)))),]
+OBI3@motus=OBI3@motus[which(rownames(OBI3@motus) %in% colnames(OBI3@reads)),]
+OBI3@samples=OBI3@samples[which(rownames(OBI3@samples) %in% rownames(OBI3@reads)),]
+OBI3@motus$count=colSums(OBI@reads)
+
+#Data export
+tmp=t(OBI3@reads)
+colnames(tmp)=paste("sample:", colnames(tmp), sep="")
+if (any(colnames(OBI3@motus)=='species_list')==T) {
+  OBI3@motus<-OBI3@motus[,-which(colnames(OBI3@motus) %in% c('species_list', 'count'))]
+}
+write.table(data.frame(OBI3@motus,tmp), paste(stri_sub(OBI_OBJ, 1, -5),"_ag_cleanA.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
 ```
 
 ### Approach B
 
-BLA BLA BLA
+Filter out non-replicating samples.
 
 ```
+OBI_OBJ <- paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
+OBI2<-import.metabarcoding.data(OBI_OBJ) 
+# Be sure that sample names start by 'sample:' (and not 'sample.')
+# @reads contains the reads table
+# @motus contains information about each motus (taxo, nb of reads etc.)
+# @sample lists all samokes
+
+#Before starting you need to create a metabarlist object
+metabarlist<-list(reads=OBI2@reads, pcrs=data.frame(row.names=rownames(OBI2@reads), rownames(OBI2@reads)))
+
+#You also need to group your replicates per sample
+REPLICATES_CLEAN=as.factor(gsub("a", "", rownames(OBI2@samples))) # factor, each level is a sample
+REPLICATES_CLEAN=gsub("b", "", REPLICATES_CLEAN)
+REPLICATES_CLEAN=gsub("c", "", REPLICATES_CLEAN)
+
+
+#' Identifying outlier replicates
+#'
+#' Identifying  non-replicating samples or controls in the sample x OTU table from a \code{\link{metabarlist}} object.
+#' Process many iterations to compare the density of pairwise distances within replicates vs between samples.
+#'
+#' @param metabarlist a \code{metabarlist} object
+#' @param FUN a function returning a distance matrix. The distance matrix should be an object of class `dist` that has the same length as table `reads`.
+#' @param groups a vector containing the identifier of replicates. The vector must has the same length of the motu x sample table from a \code{\link{metabarlist}} object. Default = metabarlist$pcrs$sample_id
+#' @param graphics a boolean value to plot  distances densities for each iteration. Default = FALSE
+#'
+#' @name pcr_outlayer
+#'
+#' @return a dataframe with the replicates groups and a column `replicating` or throws a stop
+#'
+#' @details
+#'
+#' This function identifies non-replicating samples or controls.
+#'
+#' The parameter `groups` defines groups of replicates (i.e. replicates from a same sample). The vector should be sorted like the table `PCRs` from the \code{\link{metabarlist}}.
+#' Note: if the distance between replicates is too high compared to the distance between samples, the function cannot return result because all replicates are removed.
+#' The parameter `FUN` defines the function used to compute the distance matrix. The function must return a object of class `dist` with the same length that its input table.
+#' The default function uses the function `decostand` and `vegdist` of package `vegan` to perform a correspondance analysis of \code{\link{metabarlist}} table `reads`, and return a matrix distance.
+#' Default function detail:
+#' bray_function <- function(reads) {
+#'   distance_matrix <- vegdist(decostand(reads, method = 'total'), method='bray')
+#'   return(distance_matrix)
+#' }
+#'
+#' When the parameter `graphics` is True, a graphic is plotted with the density of distance between replicates and between samples. The threshold is plotted as a vertical line at the intersection of two density curves.
+#'
+#' Note: when many projects are pulled in the same plate, you must process this function for each project. If you execute this function on many projects the variability between projects can disturb the computation of densities and then removed all samples for one project.
+
+# recursive function to find non replicating PCRs or controls
+filter_replicat <- function(sub_matrix, threshold) {
+  replicat_to_remove <- c()
+  if (any(sub_matrix > threshold)) {
+    if (nrow(sub_matrix) == 2) {
+      replicat_to_remove <- c(replicat_to_remove, rownames(sub_matrix))
+    } else {
+      replicat_to_remove <- c(
+        colnames(sub_matrix)[which.max(colSums(sub_matrix))],
+        filter_replicat(
+          sub_matrix[
+            -which.max(colSums(sub_matrix)),
+            -which.max(colSums(sub_matrix))
+          ],
+          threshold
+        )
+      )
+    }
+  }
+  return(replicat_to_remove)
+}
+
+# distance function with ade4 package and coa analysis
+coa_function <- function(reads) {
+  correspondence_analysis <- dudi.coa(sqrt(reads), scannf = FALSE, nf = 2)
+  distance_matrix <- dist(correspondence_analysis$li)
+  return(distance_matrix)
+}
+
+# distance function with vegan package and Bray-Curtis distance
+bray_function <- function(reads) {
+  distance_matrix <- vegdist(decostand(reads, method = "total"), method = "bray")
+  return(distance_matrix)
+}
+
+# main function
+pcr_outlier <- function(metabarlist,
+                               FUN = bray_function,
+                               groups = REPLICATES_CLEAN,
+                               graphics = FALSE) {
+    if (length(groups) != nrow(metabarlist$pcrs)) {
+      stop("provided groups should match the number of pcrs")
+    }
+
+    subset_data <- data.frame(
+      groups = groups, replicating = TRUE,
+      row.names = rownames(metabarlist$pcrs)
+    )
+
+    print(subset_data)
+    subset_data[which(rowSums(metabarlist$reads) == 0), "replicating"] <- FALSE
+
+    iteration <- 0
+    repeat {
+      iteration <- iteration + 1
+      print(paste("Iteration", iteration))
+
+      # get only reads for replicating samples or controls
+      matrix_with_replicate <- metabarlist$reads[
+        rownames(subset_data),
+      ][subset_data$replicating, ]
+
+      # compute matrix distance
+      function_result <- FUN(matrix_with_replicate)
+
+      if (class(function_result) != "dist") {
+        stop("The result of the provided function is incorrect! The function must return object 'dist'!")
+      }
+
+      if (length(labels(function_result)) != length(rownames(matrix_with_replicate))) {
+        stop("The result of the provided function is incorrect! The dimension of the function output is incorrect!")
+      }
+
+      if (!all(labels(function_result) %in% rownames(matrix_with_replicate))) {
+        stop("The result of the provided function is not correct! The labels of function output do not match with the data!")
+      }
+
+      distance_matrix <- as.matrix(function_result)
+
+      replicates <- subset_data[rownames(distance_matrix), "groups"]
+      within_replicates <- outer(replicates,
+        replicates,
+        FUN = "=="
+      ) & upper.tri(distance_matrix)
+      between_replicates <- outer(replicates,
+        replicates,
+        FUN = "!="
+      ) & upper.tri(distance_matrix)
+
+      if (length(distance_matrix[within_replicates]) < 2) {
+        stop("Too many replicates have been removed!")
+      }
+      within_replicate_density <- density(distance_matrix[within_replicates],
+        from = 0, to = max(distance_matrix),
+        n = 1000
+      )
+
+      if (length(distance_matrix[between_replicates]) < 2) {
+        stop("Too many replicates have been removed!")
+      }
+      between_replicate_density <- density(distance_matrix[between_replicates],
+        from = 0, to = max(distance_matrix),
+        n = 1000
+      )
+
+      threshold_distance <- between_replicate_density$x[
+        min(which(within_replicate_density$y < between_replicate_density$y))
+      ]
+
+      if (graphics) {
+        plot(within_replicate_density$x, within_replicate_density$y,
+          type = "l", xlab = "Distances", ylab = "Density",
+          main = paste("Distances densities iteration", iteration)
+        )
+        lines(between_replicate_density, col = "blue")
+        abline(v = threshold_distance, col = "red")
+      }
+
+      need_to_be_checked <- unique(subset_data[
+        rownames(which(
+          (distance_matrix > threshold_distance) & within_replicates,
+          arr.ind = T
+        )),
+        "groups"
+      ])
+      if (length(need_to_be_checked) > 0) {
+        for (group in need_to_be_checked) {
+          sub_matrix <-
+            distance_matrix[
+              subset_data[rownames(distance_matrix), "groups"] == group &
+                subset_data[rownames(distance_matrix), "replicating"],
+              subset_data[rownames(distance_matrix), "groups"] == group &
+                subset_data[rownames(distance_matrix), "replicating"]
+            ]
+
+          non_replicating <- filter_replicat(
+            sub_matrix,
+            threshold_distance
+          )
+          subset_data$replicating[
+            rownames(subset_data) %in% non_replicating
+          ] <- FALSE
+        }
+      }
+      else {
+        break
+      }
+    }
+
+    #### warning if more than 20% of replicates are removed
+    if (dim(subset_data[subset_data$replicating == F, ])[1] / dim(subset_data)[1] > 0.2) {
+      warning("More than 20% of replicates are removed !")
+    }
+    return(subset_data)
+}
+
+# Samples replicability
+MyResult<-pcr_outlier(metabarlist, FUN=bray_function, groups = REPLICATES_CLEAN, graphics = T)
+
+# Remove non-replicating samples and controls
+
+
 
 ```
 
