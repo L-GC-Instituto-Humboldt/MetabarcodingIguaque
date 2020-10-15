@@ -761,13 +761,17 @@ OBI3@motus=OBI3@motus[which(rownames(OBI3@motus) %in% colnames(OBI3@reads)),]
 OBI3@samples=OBI3@samples[which(rownames(OBI3@samples) %in% rownames(OBI3@reads)),]
 OBI3@motus$count=colSums(OBI@reads)
 
+# Remove MOTUs with zero count
+OBI3@motus = OBI3@motus[-which(OBI3@motus$count==0),]
+OBI3@reads = OBI3@reads[,which(colnames(OBI3@reads) %in% rownames(OBI3@motus))]
+
 #Data export
 tmp=t(OBI3@reads)
 colnames(tmp)=paste("sample:", colnames(tmp), sep="")
 if (any(colnames(OBI3@motus)=='species_list')==T) {
   OBI3@motus<-OBI3@motus[,-which(colnames(OBI3@motus) %in% c('species_list', 'count'))]
 }
-write.table(data.frame(OBI3@motus,tmp), paste(stri_sub(OBI_OBJ, 1, -5),"_ag_cleanA.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
+write.table(data.frame(OBI3@motus,tmp), paste(stri_sub(OBI_OBJ, 1, -5),"_ag_taxo_cleanA.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
 ```
 
 ### Approach B
@@ -775,8 +779,7 @@ write.table(data.frame(OBI3@motus,tmp), paste(stri_sub(OBI_OBJ, 1, -5),"_ag_clea
 Filter out non-replicating samples.
 
 ```
-OBI_OBJ <- paste(stri_sub(OBI_OBJ, 1, -5), "_ag.tab", sep="")
-OBI2<-import.metabarcoding.data(OBI_OBJ) 
+OBI2<-OBI
 # Be sure that sample names start by 'sample:' (and not 'sample.')
 # @reads contains the reads table
 # @motus contains information about each motus (taxo, nb of reads etc.)
@@ -982,10 +985,29 @@ pcr_outlier <- function(metabarlist,
 # Samples replicability
 MyResult<-pcr_outlier(metabarlist, FUN=bray_function, groups = REPLICATES_CLEAN, graphics = T)
 
-# Remove non-replicating samples and controls
+# Remove non-replicating samples
+OBI2@reads = OBI2@reads[MyResult[,2],]
 
+# Redefine controls position
+EMPTY=grep("BLK", rownames(OBI2@reads))
+PCR_CTL=grep("NEG", rownames(OBI2@reads))
+POS_CTL=grep("M", rownames(OBI2@reads))
+CONTROLS=c(PCR_CTL, EMPTY, POS_CTL)
 
+# Remove control samples
+OBI2@reads = OBI2@reads[-CONTROLS,]
+OBI2@motus = OBI2@motus[which(rownames(OBI2@motus) %in% colnames(OBI2@reads)),]
+OBI2@samples = as.data.frame(OBI2@samples[which(rownames(OBI2@samples) %in% rownames(OBI2@reads)),])
 
+# Remove MOTUs with zero count
+OBI2@motus$count=colSums(OBI2@reads)
+OBI2@motus = OBI2@motus[-which(OBI2@motus$count==0),]
+OBI2@reads = OBI2@reads[,which(colnames(OBI2@reads) %in% rownames(OBI2@motus))]
+
+#Data export
+tmp=t(OBI2@reads)
+colnames(tmp)=paste("sample:", colnames(tmp), sep="")
+write.table(data.frame(OBI2@motus,tmp), paste(str_sub(OBI_OBJ, 1, -5),"_ag_taxo_cleanB.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
 ```
 
 ## Data analysis
