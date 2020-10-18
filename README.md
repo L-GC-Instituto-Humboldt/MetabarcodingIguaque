@@ -318,7 +318,7 @@ hist(log10(rowSums(OBI@reads[-CONTROLS,])), breaks=40,  col=rgb(0,0,1,0.5), main
 hist(log10(rowSums(OBI@reads[POS_CTL,])), breaks=40,  col=rgb(1,0,0,0.5), add=T, lty="blank")
 
 # Set up cut-off value after visual inspection of the previous histograms
-thresh.seqdepth=2.4 
+thresh.seqdepth=2 # Change accordingly after visual examination
 abline(v=thresh.seqdepth, col="black", lty=2, lwd=2); mtext(side=4, paste("Cut-off < ", thresh.seqdepth, sep=""), cex=0.8, font=3)
 
 plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, xlab="", ylab="", main="Sample position at library plates")
@@ -347,7 +347,7 @@ hist(log10(specnumber(OBI@reads)[-CONTROLS]), breaks=40, col=rgb(0,0,1,0.5), mai
 hist(log10(specnumber(OBI@reads)[POS_CTL]), breaks=40, col=rgb(1,0,0,0.5), add=T, lty="blank")
 
 # Set up cut-off value after visual inspection of the previous histograms
-thresh.rich=1.2
+thresh.rich=1.2 # Change accordingly after visual examination
 abline(v=thresh.rich, col="black", lty=2, lwd=2); mtext(side=4, paste("Cut-off < ", thresh.rich, sep=""), cex=0.8, font=3)
 
 plot(OBI@samples$yPlate, OBI@samples$xPlate, pch=21, col=BOR.all, bg=COL.all, xlab="", ylab="", main="Samples position at library plates")
@@ -752,9 +752,11 @@ tmp3<-tmp3[!is.na(tmp3)]
 #Samples that are not clustered with their relatives + samples that are clustered with TRUE control samples 
 OUTGRAPH=unique(c(tmp3[-which(tmp3 %in% rownames(OBI)[CONTROLS]==T)], tmp1))
 
+# Samples with few reads, similar to some controls. Threshold value was visually detected above.
+SMALL=rownames(OBI)[-CONTROLS][which(log10(rowSums(OBI@reads)[-CONTROLS])<thresh.seqdepth)]
+
 #Data formatting (removal of outliers + controls)
 OBI3=OBI
-SMALL=rownames(OBI)[-CONTROLS][which(log10(rowSums(OBI@reads)[-CONTROLS])<thresh.seqdepth)]
 #Removal of all "bad" samples: OUTGRAPH (again choose the level of filtering) + those with low number of reads
 OBI3@reads=OBI3@reads[-na.omit(c(match(OUTGRAPH, rownames(OBI2@reads)),CONTROLS, match(SMALL, rownames(OBI2@reads)))),]
 OBI3@motus=OBI3@motus[which(rownames(OBI3@motus) %in% colnames(OBI3@reads)),]
@@ -762,15 +764,14 @@ OBI3@samples=OBI3@samples[which(rownames(OBI3@samples) %in% rownames(OBI3@reads)
 OBI3@motus$count=colSums(OBI@reads)
 
 # Remove MOTUs with zero count
-OBI3@motus = OBI3@motus[-which(OBI3@motus$count==0),]
-OBI3@reads = OBI3@reads[,which(colnames(OBI3@reads) %in% rownames(OBI3@motus))]
+if (any(OBI3@motus$count==0)) {
+  OBI3@motus = OBI3@motus[-which(OBI3@motus$count==0),]
+  OBI3@reads = OBI3@reads[,which(colnames(OBI3@reads) %in% rownames(OBI3@motus))]
+}
 
 #Data export
 tmp=t(OBI3@reads)
 colnames(tmp)=paste("sample:", colnames(tmp), sep="")
-if (any(colnames(OBI3@motus)=='species_list')==T) {
-  OBI3@motus<-OBI3@motus[,-which(colnames(OBI3@motus) %in% c('species_list', 'count'))]
-}
 write.table(data.frame(OBI3@motus,tmp), paste(stri_sub(OBI_OBJ, 1, -5),"_ag_taxo_cleanA.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
 ```
 
@@ -984,7 +985,11 @@ pcr_outlier <- function(metabarlist,
 
 # Samples replicability
 MyResult<-pcr_outlier(metabarlist, FUN=bray_function, groups = REPLICATES_CLEAN, graphics = T)
+```
 
+![Alt text](GWM-841_align_filterE2_uniq_nl_setid_c10_assign_r140_Eukarya_t3_ag_taxo_cleanB.png?raw=true)
+
+```
 # Remove non-replicating samples
 OBI2@reads = OBI2@reads[MyResult[,2],]
 
@@ -1001,8 +1006,10 @@ OBI2@samples = as.data.frame(OBI2@samples[which(rownames(OBI2@samples) %in% rown
 
 # Remove MOTUs with zero count
 OBI2@motus$count=colSums(OBI2@reads)
-OBI2@motus = OBI2@motus[-which(OBI2@motus$count==0),]
-OBI2@reads = OBI2@reads[,which(colnames(OBI2@reads) %in% rownames(OBI2@motus))]
+if (any(OBI2@motus$count==0)) {
+  OBI2@motus = OBI2@motus[-which(OBI2@motus$count==0),]
+  OBI2@reads = OBI2@reads[,which(colnames(OBI2@reads) %in% rownames(OBI2@motus))]
+}
 
 #Data export
 tmp=t(OBI2@reads)
