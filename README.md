@@ -752,13 +752,10 @@ tmp3<-tmp3[!is.na(tmp3)]
 #Samples that are not clustered with their relatives + samples that are clustered with TRUE control samples 
 OUTGRAPH=unique(c(tmp3[-which(tmp3 %in% rownames(OBI)[CONTROLS]==T)], tmp1))
 
-# Samples with few reads, similar to some controls. Threshold value was visually detected above.
-SMALL=rownames(OBI)[-CONTROLS][which(log10(rowSums(OBI@reads)[-CONTROLS])<thresh.seqdepth)]
-
 #Data formatting (removal of outliers + controls)
 OBI3=OBI
 #Removal of all "bad" samples: OUTGRAPH (again choose the level of filtering) + those with low number of reads
-OBI3@reads=OBI3@reads[-na.omit(c(match(OUTGRAPH, rownames(OBI2@reads)),CONTROLS, match(SMALL, rownames(OBI2@reads)))),]
+OBI3@reads=OBI3@reads[-na.omit(c(match(OUTGRAPH, rownames(OBI2@reads)),CONTROLS)),]
 OBI3@motus=OBI3@motus[which(rownames(OBI3@motus) %in% colnames(OBI3@reads)),]
 OBI3@samples=OBI3@samples[which(rownames(OBI3@samples) %in% rownames(OBI3@reads)),]
 OBI3@motus$count=colSums(OBI@reads)
