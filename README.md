@@ -1014,6 +1014,47 @@ colnames(tmp)=paste("sample:", colnames(tmp), sep="")
 write.table(data.frame(OBI2@motus,tmp), paste(str_sub(OBI_OBJ, 1, -5),"_ag_taxo_cleanB.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
 ```
 
+### Matrix formatting
+
+Aggregate replicates from the same sample by their relative read abundance (RRA).
+
+```
+# IMPORTANT: Be sure that sample names start by 'sample:' and not by 'sample.' -If needed, manually edit the file.
+OBJ2 <- '~/Dropbox/MetabarcodingIguaque/2020/Fungi/t99/GWM-845_align_filterE2_uniq_nl_setid_c10_assign_r140_Fungi_t99_ag_taxo_cleanB.tab'
+OBI=import.metabarcoding.data(OBJ2)
+
+# Drop redundant taxonomic information
+OBI@motus <- OBI@motus[-c(5,6,8,10,11,13,15,17,26)]
+
+# Remove samples from extra plot
+# Plot 3 at 3700 m is duplicated. Based on previous results, remove PART2 samples.
+OBI@reads <- OBI@reads[-grep('PART2', rownames(OBI@reads)),] #Change for PART1 or PART2 accordingly
+
+# Rename samples that contain 'PART' in their name
+rownames(OBI@reads)[grep('PART', rownames(OBI@reads))] <- paste(str_sub(rownames(OBI@reads)[grep('PART', rownames(OBI@reads))], end=-7),
+      str_sub(rownames(OBI@reads)[grep('PART', rownames(OBI@reads))], start=-1), sep='')
+
+# Remove lost MOTUs that were unique to the above dropped samples
+OBI@motus$count=colSums(OBI@reads)
+if (any(OBI@motus$count==0)) {
+  OBI@motus = OBI@motus[-which(OBI@motus$count==0),]
+  OBI@reads = OBI@reads[,which(colnames(OBI@reads) %in% rownames(OBI@motus))]
+}
+
+# Aggregate replicates from the same sample by the mean of relative read abundance (RRA)
+MyData<-decostand(OBI@reads, 'total', MARGIN=1) # Standardise abundances
+MyData2<-aggregate(MyData, by=list(str_sub(rownames(MyData), end=-3)), FUN=mean)
+rownames(MyData2)<-MyData2[,1]
+MyData2<-MyData2[,-1]
+OBI@reads=as.matrix(MyData2)
+
+# Export data
+tmp=t(OBI@reads)
+colnames(tmp)=paste("sample:", colnames(tmp), sep="")
+write.table(data.frame(OBI@motus,tmp), paste(str_sub(OBJ2, 1, -5),"_RRA.tab", sep=""), row.names=F, col.names=T, sep="\t", quote=F)
+```
+
+
 ## Data analysis
 
 ### Required softwares and packages
